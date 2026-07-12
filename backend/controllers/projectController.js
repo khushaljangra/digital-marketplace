@@ -415,7 +415,8 @@ export const getDownloadLink = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Project not found' });
       }
       if (project.externalDownloadUrl) {
-        return res.json({ success: true, downloadUrl: project.externalDownloadUrl });
+        const finalUrl = convertGoogleDriveLink(project.externalDownloadUrl);
+        return res.json({ success: true, downloadUrl: finalUrl });
       }
       const downloadUrl = `${hostUrl}/api/projects/download-secure?token=mock_download_token_${projectId}`;
       return res.json({ success: true, downloadUrl });
@@ -441,7 +442,8 @@ export const getDownloadLink = async (req, res) => {
     }
 
     if (project.externalDownloadUrl) {
-      return res.json({ success: true, downloadUrl: project.externalDownloadUrl });
+      const finalUrl = convertGoogleDriveLink(project.externalDownloadUrl);
+      return res.json({ success: true, downloadUrl: finalUrl });
     }
 
     let fileKey = project.fileKey;
@@ -504,6 +506,21 @@ export const downloadProjectSecure = async (req, res) => {
 
     const { fileKey, originalName, userId, projectId, orderId } = decoded;
 
+    // Check if project has Google Drive / external download URL, and redirect directly
+    if (!isDbConnected()) {
+      const project = mockDb.projects.find(p => p._id === projectId);
+      if (project && project.externalDownloadUrl) {
+        const finalUrl = convertGoogleDriveLink(project.externalDownloadUrl);
+        return res.redirect(finalUrl);
+      }
+    } else {
+      const project = await Project.findById(projectId);
+      if (project && project.externalDownloadUrl) {
+        const finalUrl = convertGoogleDriveLink(project.externalDownloadUrl);
+        return res.redirect(finalUrl);
+      }
+    }
+
     // Check if order exists and is paid
     const order = await Order.findById(orderId);
     if (!order || order.paymentStatus !== 'paid' || order.user.toString() !== userId) {
@@ -558,4 +575,30 @@ export const downloadProjectSecure = async (req, res) => {
     }
     return res.status(401).send('Invalid download credentials');
   }
+};
+
+export const convertGoogleDriveLink = (url) => {
+  if (!url) return '';
+  const fileIdRegex = /\/file\/d\/([a-zA-Z0-9_-]+)\b/;
+  const openIdRegex = /[?&]id=([a-zA-Z0-9_-]+)\b/;
+  const docsIdRegex = /\/d\/([a-zA-Z0-9_-]+)\/(?:edit|view)/;
+
+  let fileId = null;
+  
+  if (url.includes('drive.google.com/file/d/')) {
+    const match = url.match(fileIdRegex);
+    if (match) fileId = match[1];
+  } else if (url.includes('drive.google.com/open') || url.includes('drive.google.com/uc')) {
+    const match = url.match(openIdRegex);
+    if (match) fileId = match[1];
+  } else if (url.includes('docs.google.com') && url.includes('/d/')) {
+    const match = url.match(docsIdRegex);
+    if (match) fileId = match[1];
+  }
+
+  if (fileId) {
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  }
+  
+  return url;
 };
