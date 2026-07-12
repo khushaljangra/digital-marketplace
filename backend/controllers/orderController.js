@@ -380,6 +380,12 @@ export const createQrOrder = async (req, res) => {
     }
 
     if (!isDbConnected()) {
+      // Prevent reusing UTRs in mock memory
+      const existingUtr = mockDb.orders.find(o => o.transactionRef === transactionRef);
+      if (existingUtr) {
+        return res.status(400).json({ success: false, message: 'This UTR has already been submitted. Please enter a unique transaction ID.' });
+      }
+
       const projects = mockDb.projects.filter(p => projectIds.includes(p._id));
       if (projects.length === 0) {
         return res.status(404).json({ success: false, message: 'Projects not found' });
@@ -419,6 +425,12 @@ export const createQrOrder = async (req, res) => {
     }
 
     // DB Mode
+    // Prevent reusing UTRs in Database
+    const existingUtr = await Order.findOne({ transactionRef });
+    if (existingUtr) {
+      return res.status(400).json({ success: false, message: 'This UTR has already been submitted. Please enter a unique transaction ID.' });
+    }
+
     const projects = await Project.find({ _id: { $in: projectIds } });
     if (projects.length === 0) {
       return res.status(404).json({ success: false, message: 'Projects not found' });
