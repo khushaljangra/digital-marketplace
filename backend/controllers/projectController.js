@@ -280,15 +280,30 @@ export const updateProject = async (req, res) => {
  */
 export const deleteProject = async (req, res) => {
   try {
+    if (!isDbConnected()) {
+      const index = mockDb.projects.findIndex(p => p._id === req.params.id);
+      if (index === -1) {
+        return res.status(404).json({ success: false, message: 'Project not found' });
+      }
+      mockDb.projects.splice(index, 1);
+      return res.json({ success: true, message: 'Project deleted from mock database' });
+    }
+
     const project = await Project.findById(req.params.id);
 
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
 
-    // Delete all associated files in versions
-    for (const ver of project.versions) {
-      await deleteFileFromStorage(ver.fileKey);
+    // Delete all associated files in versions, wrap in try-catch to avoid blocking database deletion
+    if (project.versions) {
+      for (const ver of project.versions) {
+        try {
+          await deleteFileFromStorage(ver.fileKey);
+        } catch (err) {
+          console.error(`Failed to delete physical file ${ver.fileKey}:`, err.message);
+        }
+      }
     }
 
     await Project.findByIdAndDelete(req.params.id);
