@@ -28,24 +28,13 @@ const Cart = () => {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   // QR Code direct payment states
-  const [paymentMethod, setPaymentMethod] = useState('gateway'); // 'gateway' or 'qr_code'
+  const [paymentMethod] = useState('qr_code'); // Always qr_code
   const [showQrModal, setShowQrModal] = useState(false);
   const [utrNumber, setUtrNumber] = useState('');
   const [qrSubmitLoading, setQrSubmitLoading] = useState(false);
   const [utrError, setUtrError] = useState('');
 
   const navigate = useNavigate();
-
-  // Load Razorpay Script in head dynamically
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
 
   const handleApplyCouponSubmit = async (e) => {
     e.preventDefault();
@@ -328,36 +317,16 @@ const Cart = () => {
               </button>
             )}
 
-            {/* Payment Method Selector */}
+            {/* Payment Method Info */}
             <div style={{
               borderTop: '1px solid var(--border)',
               paddingTop: '20px',
-              marginBottom: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px'
+              marginBottom: '20px'
             }}>
-              <h4 style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>Payment Method</h4>
-              
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-                <input
-                  type="radio"
-                  name="payment"
-                  checked={paymentMethod === 'gateway'}
-                  onChange={() => setPaymentMethod('gateway')}
-                />
-                <span>Online Gateway (Razorpay)</span>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-                <input
-                  type="radio"
-                  name="payment"
-                  checked={paymentMethod === 'qr_code'}
-                  onChange={() => setPaymentMethod('qr_code')}
-                />
-                <span style={{ fontWeight: 600, color: 'var(--accent)' }}>Direct UPI Scan (Manual UTR)</span>
-              </label>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Payment Method</span>
+              <strong style={{ fontSize: '14px', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <QrCode size={16} /> Direct UPI Scan (Manual Verification)
+              </strong>
             </div>
 
             {/* Pay Button */}
@@ -367,11 +336,7 @@ const Cart = () => {
               className="btn btn-primary"
               style={{ width: '100%', padding: '14px', fontSize: '15px' }}
             >
-              {paymentMethod === 'qr_code' ? (
-                <>Scan QR & Pay <QrCode size={18} /></>
-              ) : (
-                <>Proceed to Checkout <ArrowRight size={18} /></>
-              )}
+              Scan QR & Pay <QrCode size={18} />
             </button>
           </div>
 
