@@ -362,3 +362,182 @@ export const getAllOrders = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * @desc    Submit manual QR code payment with UTR reference
+ * @route   POST /api/orders/qr-checkout
+ * @access  Private
+ */
+export const createQrOrder = async (req, res) => {
+  const { projectIds, couponCode, transactionRef } = req.body;
+
+  try {
+    if (!projectIds || projectIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'No projects in checkout' });
+    }
+    if (!transactionRef || transactionRef.trim().length !== 12 || isNaN(transactionRef)) {
+      return res.status(400).json({ success: false, message: 'Invalid 12-digit UPI UTR Transaction Reference Number' });
+    }
+
+    if (!isDbConnected()) {
+      const projects = mockDb.projects.filter(p => projectIds.includes(p._id));
+      if (projects.length === 0) {
+        return res.status(404).json({ success: false, message: 'Projects not found' });
+      }
+
+      let subtotal = projects.reduce((acc, curr) => acc + curr.price, 0);
+      let discountAmount = 0;
+      let totalAmount = subtotal;
+
+      if (couponCode) {
+        const coupon = mockDb.coupons.find(c => c.code === couponCode.toUpperCase() && c.isActive);
+        if (coupon) {
+          if (coupon.discountType === 'percentage') {
+            discountAmount = (subtotal * coupon.discountValue) / 100;
+          } else {
+            discountAmount = coupon.discountValue;
+          }
+          totalAmount = Math.max(0, subtotal - discountAmount);
+        }
+      }
+
+      const order = {
+        _id: `ord_mock_${Date.now()}`,
+        user: req.user._id,
+        items: projects.map(p => ({ project: p._id, priceAtPurchase: p.price, titleAtPurchase: p.title })),
+        totalAmount,
+        discountAmount,
+        couponApplied: couponCode ? couponCode.toUpperCase() : null,
+        paymentStatus: 'pending_verification',
+        paymentMethod: 'qr_code',
+        transactionRef,
+        createdAt: new Date()
+      };
+
+      mockDb.orders.push(order);
+      return res.status(201).json({ success: true, message: 'Order submitted. Pending manual verification by admin.', orderId: order._id });
+    }
+
+    // DB Mode
+    const projects = await Project.find({ _id: { $in: projectIds } });
+    if (projects.length === 0) {
+      return res.status(404).json({ success: false, message: 'Projects not found' });
+    }
+
+    let subtotal = projects.reduce((acc, curr) => acc + curr.price, 0);
+    let discountAmount = 0;
+    let totalAmount = subtotal;
+
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), isActive: true });
+      if (coupon && coupon.isValid(subtotal)) {
+        if (coupon.discountType === 'percentage') {
+          discountAmount = (subtotal * coupon.discountValue) / 100;
+        } else {
+          discountAmount = coupon.discountValue;
+        }
+        totalAmount = Math.max(0, subtotal - discountAmount);
+      }
+    }
+
+    const orderItems = projects.map(p => ({ project: p._id, priceAtPurchase: p.price, titleAtPurchase: p.title }));
+    const order = await Order.create({
+      user: req.user._id,
+      items: orderItems,
+      totalAmount,
+      discountAmount,
+      couponApplied: couponCode ? couponCode.toUpperCase() : null,
+      paymentStatus: 'pending_verification',
+      paymentMethod: 'qr_code',
+      transactionRef
+    });
+
+    res.status(201).json({ success: true, message: 'Order submitted. Pending manual verification by admin.', orderId: order._id });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Approve manual QR code payment UTR (Admin only)
+ * @route   POST /api/orders/verify-utr/:id
+ * @access  Private/Admin
+ */
+export const verifyUtrOrder = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    if (!isDbConnected()) {
+      const order = mockDb.orders.find(o => o._id === orderId);
+      if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+      order.paymentStatus = 'paid';
+
+      // Send mock confirmation email
+      const user = mockDb.users.find(u => u._id === order.user);
+      const downloadLinks = order.items.map(item => ({
+        title: item.titleAtPurchase,
+        downloadUrl: `http://localhost:5000/api/projects/download-secure?token=mock_download_token_${item.project}`
+      }));
+      await sendPurchaseEmail(user ? user.email : 'user@marketplace.com', user ? user.name : 'Customer', order, downloadLinks);
+
+      return res.json({ success: true, message: 'Order approved successfully.', order });
+    }
+
+    const order = await Order.findById(orderId).populate('items.project').populate('user');
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    order.paymentStatus = 'paid';
+    await order.save();
+
+    // Send confirmation email with download links
+    const downloadLinks = [];
+    for (const item of order.items) {
+      const downloadUrl = generateSignedDownloadUrl(
+        item.project.fileKey,
+        item.project.fileName,
+        order.user._id.toString(),
+        item.project._id.toString(),
+        order._id.toString()
+      );
+      downloadLinks.push({
+        title: item.project.title,
+        downloadUrl,
+      });
+    }
+    await sendPurchaseEmail(order.user.email, order.user.name, order, downloadLinks);
+
+    res.json({ success: true, message: 'Order approved successfully.', order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Reject manual QR code payment UTR (Admin only)
+ * @route   POST /api/orders/reject-utr/:id
+ * @access  Private/Admin
+ */
+export const rejectUtrOrder = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    if (!isDbConnected()) {
+      const order = mockDb.orders.find(o => o._id === orderId);
+      if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+      order.paymentStatus = 'failed';
+      return res.json({ success: true, message: 'Order rejected successfully.', order });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    order.paymentStatus = 'failed';
+    await order.save();
+
+    res.json({ success: true, message: 'Order rejected successfully.', order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -3,7 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { request } from '../utils/api';
-import { ShoppingCart, Trash2, Tag, Percent, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ShoppingCart, Trash2, Tag, Percent, ArrowRight, ShieldCheck, QrCode } from 'lucide-react';
+
+// Configure your personal UPI ID here
+const MERCHANT_UPI_ID = 'khushaljangra@ybl';
 
 const Cart = () => {
   const { user } = useAuth();
@@ -23,6 +26,13 @@ const Cart = () => {
   const [couponMsg, setCouponMsg] = useState('');
   const [couponError, setCouponError] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  // QR Code direct payment states
+  const [paymentMethod, setPaymentMethod] = useState('gateway'); // 'gateway' or 'qr_code'
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [utrNumber, setUtrNumber] = useState('');
+  const [qrSubmitLoading, setQrSubmitLoading] = useState(false);
+  const [utrError, setUtrError] = useState('');
 
   const navigate = useNavigate();
 
@@ -56,8 +66,12 @@ const Cart = () => {
 
   const handleCheckout = async () => {
     if (!user) {
-      // Redirect to login page and preserve redirect to cart page afterwards
       navigate('/login', { state: { from: { pathname: '/cart' } } });
+      return;
+    }
+
+    if (paymentMethod === 'qr_code') {
+      setShowQrModal(true);
       return;
     }
 
@@ -65,7 +79,6 @@ const Cart = () => {
     try {
       const projectIds = cartItems.map((item) => item._id);
       
-      // Initialize Order
       const orderData = await request('/orders/checkout', 'POST', {
         projectIds,
         couponCode: coupon?.code,
@@ -75,11 +88,9 @@ const Cart = () => {
         throw new Error('Failed to initiate checkout');
       }
 
-      // Check if server is running in Razorpay Sandbox (Mock) mode
       if (orderData.isMock) {
         alert('Sandbox Mode: Processing mock payment checkout instantly.');
         
-        // Call backend verification with mock values
         const verification = await request('/orders/verify', 'POST', {
           razorpayOrderId: orderData.razorpayOrderId,
           razorpayPaymentId: `pay_mock_${Math.random().toString(36).substring(2, 10)}`,
@@ -93,7 +104,6 @@ const Cart = () => {
           alert('Sandbox payment verification failed');
         }
       } else {
-        // Run Real Razorpay Checkout modal
         if (!window.Razorpay) {
           alert('Razorpay Checkout SDK failed to load. Check internet connection.');
           setCheckoutLoading(false);
@@ -147,6 +157,37 @@ const Cart = () => {
     }
   };
 
+  const handleQrSubmit = async (e) => {
+    e.preventDefault();
+    setUtrError('');
+
+    if (!utrNumber || utrNumber.trim().length !== 12 || isNaN(utrNumber)) {
+      setUtrError('Please enter a valid 12-digit numeric UTR/Reference Number.');
+      return;
+    }
+
+    setQrSubmitLoading(true);
+    try {
+      const projectIds = cartItems.map((item) => item._id);
+      const data = await request('/orders/qr-checkout', 'POST', {
+        projectIds,
+        couponCode: coupon?.code,
+        transactionRef: utrNumber.trim(),
+      });
+
+      if (data.success) {
+        clearCart();
+        alert('UTR Submitted Successfully! Once verified by Admin, your download access will be unlocked.');
+        setShowQrModal(false);
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      setUtrError(error.message || 'Verification submission failed');
+    } finally {
+      setQrSubmitLoading(false);
+    }
+  };
+
   if (cartItems.length === 0) {
     return (
       <div className="container animate-fade-in" style={{ padding: '80px 24px', textAlign: 'center' }}>
@@ -178,145 +219,259 @@ const Cart = () => {
         alignItems: 'flex-start'
       }}>
         
-        {/* Left Column: Cart Items List */}
+        {/* Left Side: Items list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {cartItems.map((item) => (
             <div key={item._id} className="glass-card" style={{
               display: 'flex',
+              gap: '20px',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '20px',
-              gap: '20px'
+              padding: '16px 20px',
+              borderRadius: '12px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{
-                  width: '60px',
-                  height: '45px',
-                  borderRadius: '6px',
-                  overflow: 'hidden',
-                  background: 'var(--bg-tertiary)'
-                }}>
-                  <img src={item.previewUrls?.[0] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    <Link to={`/projects/${item._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                      {item.title}
-                    </Link>
-                  </h3>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Size: {item.fileSize}</span>
-                </div>
+              <img
+                src={item.previewUrls?.[0] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=80&q=80'}
+                alt={item.title}
+                style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border)' }}
+              />
+              
+              <div style={{ flexGrow: 1 }}>
+                <h3 style={{ fontSize: '16px', color: 'var(--text-primary)', marginBottom: '4px' }}>{item.title}</h3>
+                <span className="badge badge-primary">{item.category}</span>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                <strong style={{ fontSize: '16px', color: 'var(--text-primary)' }}>INR {item.price}</strong>
+              <div style={{ textAlign: 'right' }}>
+                <strong style={{ fontSize: '16px', color: 'var(--text-primary)', display: 'block', marginBottom: '8px' }}>
+                  INR {item.price}
+                </strong>
                 <button
                   onClick={() => removeFromCart(item._id)}
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: 'var(--text-muted)',
+                    color: 'var(--error)',
                     cursor: 'pointer',
-                    transition: 'color 0.2s'
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '12px'
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-                  title="Remove Item"
                 >
-                  <Trash2 size={18} />
+                  <Trash2 size={14} /> Remove
                 </button>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Right Column: Order Checkout Summary Panel */}
-        <div>
-          <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontSize: '18px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>Order Summary</h3>
+        {/* Right Side: Billing details */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="glass-card" style={{ borderRadius: '16px' }}>
+            <h3 style={{ fontSize: '18px', color: 'var(--text-primary)', borderBottom: '1px solid var(--border)', paddingBottom: '16px', marginBottom: '20px' }}>
+              Order Summary
+            </h3>
 
-            {/* Price list */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+            {/* Price lines */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Subtotal:</span>
-                <strong style={{ color: 'var(--text-primary)' }}>INR {subtotal}</strong>
+                <span>Subtotal</span>
+                <span>INR {subtotal}</span>
               </div>
+              
               {discount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--success)' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Percent size={14} /> Coupon discount:
-                  </span>
-                  <strong>- INR {discount}</strong>
+                  <span>Coupon Discount {coupon && `(${coupon.code})`}</span>
+                  <span>- INR {discount}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '12px', fontSize: '18px', color: 'var(--text-primary)' }}>
-                <span>Total Amount:</span>
-                <strong>INR {total}</strong>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-primary)', fontWeight: 'bold', fontSize: '16px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                <span>Total Amount</span>
+                <span>INR {total}</span>
               </div>
             </div>
 
-            {/* Coupon Application Box */}
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
-              {coupon ? (
-                <div style={{
+            {/* Promo coupon input */}
+            <form onSubmit={handleApplyCouponSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              <input
+                type="text"
+                placeholder="Enter Promo Code..."
+                className="form-input"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                style={{ padding: '8px 12px', fontSize: '13px' }}
+              />
+              <button type="submit" className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '13px' }}>
+                Apply
+              </button>
+            </form>
+
+            {couponMsg && <div style={{ color: 'var(--success)', fontSize: '12px', marginBottom: '14px', fontWeight: 600 }}>{couponMsg}</div>}
+            {couponError && <div style={{ color: 'var(--error)', fontSize: '12px', marginBottom: '14px', fontWeight: 600 }}>{couponError}</div>}
+            
+            {coupon && (
+              <button
+                onClick={removeCoupon}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: '12px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
-                  color: '#34d399',
-                  fontSize: '13px'
-                }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
-                    <Tag size={14} /> {coupon.code} Applied
-                  </span>
-                  <button onClick={removeCoupon} style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#f87171',
-                    cursor: 'pointer',
-                    fontWeight: 'bold'
-                  }}>Remove</button>
-                </div>
-              ) : (
-                <form onSubmit={handleApplyCouponSubmit} style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Coupon Code"
-                    style={{ padding: '8px 12px', fontSize: '13px' }}
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                  />
-                  <button type="submit" className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '13px' }}>
-                    Apply
-                  </button>
-                </form>
-              )}
+                  gap: '4px',
+                  marginBottom: '20px'
+                }}
+              >
+                Remove applied coupon
+              </button>
+            )}
 
-              {couponMsg && <p style={{ fontSize: '11px', color: 'var(--success)', marginTop: '6px' }}>{couponMsg}</p>}
-              {couponError && <p style={{ fontSize: '11px', color: 'var(--error)', marginTop: '6px' }}>{couponError}</p>}
+            {/* Payment Method Selector */}
+            <div style={{
+              borderTop: '1px solid var(--border)',
+              paddingTop: '20px',
+              marginBottom: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <h4 style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>Payment Method</h4>
+              
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                <input
+                  type="radio"
+                  name="payment"
+                  checked={paymentMethod === 'gateway'}
+                  onChange={() => setPaymentMethod('gateway')}
+                />
+                <span>Online Gateway (Razorpay)</span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                <input
+                  type="radio"
+                  name="payment"
+                  checked={paymentMethod === 'qr_code'}
+                  onChange={() => setPaymentMethod('qr_code')}
+                />
+                <span style={{ fontWeight: 600, color: 'var(--accent)' }}>Direct UPI Scan (Manual UTR)</span>
+              </label>
             </div>
 
-            {/* Checkout CTA */}
+            {/* Pay Button */}
             <button
               onClick={handleCheckout}
-              className="btn btn-primary"
               disabled={checkoutLoading}
-              style={{ width: '100%', padding: '14px', marginTop: '10px' }}
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '14px', fontSize: '15px' }}
             >
-              {checkoutLoading ? 'Processing...' : user ? 'Checkout & Pay' : 'Sign In to Pay'} <ArrowRight size={18} />
+              {paymentMethod === 'qr_code' ? (
+                <>Scan QR & Pay <QrCode size={18} /></>
+              ) : (
+                <>Proceed to Checkout <ArrowRight size={18} /></>
+              )}
             </button>
+          </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-              <ShieldCheck size={14} /> Secure Checkout encrypted via Razorpay
-            </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', justifyContent: 'center' }}>
+            <ShieldCheck size={16} style={{ color: 'var(--success)' }} />
+            <span>Files scanned by system. Secure UTR encryption.</span>
           </div>
         </div>
 
       </div>
+
+      {/* Manual UPI QR Code Modal Overlay */}
+      {showQrModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="glass-card animate-fade-in" style={{
+            maxWidth: '450px',
+            width: '100%',
+            borderRadius: '16px',
+            padding: '30px',
+            textAlign: 'center',
+            border: '1px solid var(--border)',
+            background: 'var(--bg-secondary)'
+          }}>
+            <h3 style={{ fontSize: '20px', color: 'var(--text-primary)', marginBottom: '8px' }}>Scan QR Code to Pay</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+              Scan the QR below with Google Pay, PhonePe, Paytm, or BHIM to send the payment directly.
+            </p>
+
+            {/* QR Code Container */}
+            <div style={{
+              background: 'white',
+              padding: '16px',
+              borderRadius: '12px',
+              display: 'inline-block',
+              marginBottom: '20px',
+              boxShadow: 'var(--shadow-md)'
+            }}>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                  `upi://pay?pa=${MERCHANT_UPI_ID}&pn=Khushal%20Jangra&am=${total}&cu=INR&tn=ApexMarket_Order`
+                )}`}
+                alt="UPI QR Code"
+                style={{ display: 'block', width: '180px', height: '180px' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block' }}>Amount to Transfer</span>
+              <strong style={{ fontSize: '26px', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>INR {total}</strong>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
+                UPI ID: <code style={{ color: 'var(--primary)' }}>{MERCHANT_UPI_ID}</code>
+              </span>
+            </div>
+
+            {/* UTR Input Form */}
+            <form onSubmit={handleQrSubmit}>
+              <div style={{ textAlign: 'left', marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>
+                  12-Digit UPI Ref No. / UTR Number
+                </label>
+                <input
+                  type="text"
+                  maxLength="12"
+                  className="form-input"
+                  placeholder="Enter 12-digit transaction UTR number..."
+                  value={utrNumber}
+                  onChange={(e) => {
+                    setUtrNumber(e.target.value);
+                    setUtrError('');
+                  }}
+                  required
+                />
+                {utrError && <span style={{ color: 'var(--error)', fontSize: '11px', marginTop: '4px', display: 'block', fontWeight: 600 }}>{utrError}</span>}
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowQrModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={qrSubmitLoading}>
+                  {qrSubmitLoading ? 'Submitting...' : 'Confirm Payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

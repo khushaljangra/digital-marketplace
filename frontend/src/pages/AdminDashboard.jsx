@@ -104,6 +104,33 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleApproveUtr = async (orderId) => {
+    if (!window.confirm('Approve this UTR payment and unlock downloads?')) return;
+    try {
+      const data = await request(`/orders/verify-utr/${orderId}`, 'POST');
+      if (data.success) {
+        alert('Order approved successfully! Download access has been unlocked.');
+        fetchOrders();
+        fetchDashboardStats();
+      }
+    } catch (error) {
+      alert(error.message || 'Verification failed');
+    }
+  };
+
+  const handleRejectUtr = async (orderId) => {
+    if (!window.confirm('Reject this UTR payment?')) return;
+    try {
+      const data = await request(`/orders/reject-utr/${orderId}`, 'POST');
+      if (data.success) {
+        alert('Order rejected successfully.');
+        fetchOrders();
+      }
+    } catch (error) {
+      alert(error.message || 'Rejection failed');
+    }
+  };
+
   useEffect(() => {
     fetchDashboardStats();
     fetchProjects();
@@ -772,6 +799,11 @@ const AdminDashboard = () => {
                       <td style={{ padding: '12px 8px' }}>
                         <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{o.user?.name || 'N/A'}</strong>
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{o.user?.email || 'N/A'}</span>
+                        {o.paymentMethod === 'qr_code' && (
+                          <span style={{ display: 'block', fontSize: '11px', color: 'var(--accent)', marginTop: '4px', fontWeight: 600 }}>
+                            UPI QR Code (UTR: {o.transactionRef})
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '12px 8px' }}>
                         <ul style={{ paddingLeft: '16px', margin: 0 }}>
@@ -784,17 +816,41 @@ const AdminDashboard = () => {
                       </td>
                       <td style={{ padding: '12px 8px', fontWeight: 600 }}>INR {o.totalAmount}</td>
                       <td style={{ padding: '12px 8px' }}>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          fontSize: '11px',
-                          fontWeight: 'bold',
-                          color: o.paymentStatus === 'paid' ? 'var(--success)' : o.paymentStatus === 'pending' ? 'var(--warning)' : 'var(--error)'
-                        }}>
-                          {o.paymentStatus === 'paid' ? <CheckCircle size={12} /> : null}
-                          {o.paymentStatus.toUpperCase()}
-                        </span>
+                        {o.paymentStatus === 'pending_verification' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <span style={{ color: 'var(--warning)', fontWeight: 'bold', fontSize: '11px' }}>
+                              PENDING VERIFICATION
+                            </span>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button
+                                onClick={() => handleApproveUtr(o._id)}
+                                className="btn btn-primary"
+                                style={{ padding: '4px 8px', fontSize: '10px', borderRadius: '4px' }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectUtr(o._id)}
+                                className="btn btn-danger"
+                                style={{ padding: '4px 8px', fontSize: '10px', borderRadius: '4px' }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            color: o.paymentStatus === 'paid' ? 'var(--success)' : o.paymentStatus === 'pending' ? 'var(--warning)' : 'var(--error)'
+                          }}>
+                            {o.paymentStatus === 'paid' ? <CheckCircle size={12} /> : null}
+                            {o.paymentStatus.toUpperCase()}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
