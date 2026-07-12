@@ -9,7 +9,7 @@ import { ShoppingCart, Trash2, Tag, Percent, ArrowRight, ShieldCheck, QrCode } f
 const MERCHANT_UPI_ID = 'choyal034-1@oksbi';
 
 const Cart = () => {
-  const { user } = useAuth();
+  const { user, loadProfile } = useAuth();
   const {
     cartItems,
     removeFromCart,
@@ -63,11 +63,6 @@ const Cart = () => {
   };
 
   const handleCheckout = async () => {
-    if (!user) {
-      navigate('/login', { state: { from: { pathname: '/cart' } } });
-      return;
-    }
-
     if (paymentMethod === 'qr_code') {
       setShowQrModal(true);
       return;
@@ -184,6 +179,12 @@ const Cart = () => {
       });
 
       if (data.success) {
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+          if (loadProfile) {
+            await loadProfile();
+          }
+        }
         clearCart();
         alert('UTR Submitted Successfully! Once verified by Admin, your download access will be unlocked.');
         setShowQrModal(false);

@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import Order from '../models/Order.js';
 import Project from '../models/Project.js';
 import Coupon from '../models/Coupon.js';
@@ -392,6 +393,33 @@ export const createQrOrder = async (req, res) => {
         return res.status(400).json({ success: false, message: 'This UTR has already been submitted. Please enter a unique transaction ID.' });
       }
 
+      // Check if user is logged in via header, or find/create dynamically
+      let targetUser;
+      if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        try {
+          const authParts = req.headers.authorization.split(' ');
+          const token = authParts[1];
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey_9918237');
+          targetUser = mockDb.users.find(u => u._id === decoded.id);
+        } catch (err) {
+          // ignore token error
+        }
+      }
+
+      if (!targetUser) {
+        targetUser = mockDb.users.find(u => u.email.toLowerCase() === contactEmail.toLowerCase());
+        if (!targetUser) {
+          targetUser = {
+            _id: `usr_mock_guest_${Date.now()}`,
+            name: contactEmail.split('@')[0],
+            email: contactEmail.toLowerCase(),
+            role: 'user',
+            createdAt: new Date()
+          };
+          mockDb.users.push(targetUser);
+        }
+      }
+
       const projects = mockDb.projects.filter(p => projectIds.includes(p._id));
       if (projects.length === 0) {
         return res.status(404).json({ success: false, message: 'Projects not found' });
@@ -415,7 +443,7 @@ export const createQrOrder = async (req, res) => {
 
       const order = {
         _id: `ord_mock_${Date.now()}`,
-        user: req.user._id,
+        user: targetUser._id,
         items: projects.map(p => ({ project: p._id, priceAtPurchase: p.price, titleAtPurchase: p.title })),
         totalAmount,
         discountAmount,
@@ -429,7 +457,21 @@ export const createQrOrder = async (req, res) => {
       };
 
       mockDb.orders.push(order);
-      return res.status(201).json({ success: true, message: 'Order submitted. Pending manual verification by admin.', orderId: order._id });
+
+      const token = jwt.sign({ id: targetUser._id }, process.env.JWT_SECRET || 'supersecretkey_9918237', { expiresIn: '30d' });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Order submitted. Pending manual verification by admin.',
+        orderId: order._id,
+        token,
+        user: {
+          _id: targetUser._id,
+          name: targetUser.name,
+          email: targetUser.email,
+          role: targetUser.role
+        }
+      });
     }
 
     // DB Mode
@@ -437,6 +479,31 @@ export const createQrOrder = async (req, res) => {
     const existingUtr = await Order.findOne({ transactionRef });
     if (existingUtr) {
       return res.status(400).json({ success: false, message: 'This UTR has already been submitted. Please enter a unique transaction ID.' });
+    }
+
+    // Check if user is logged in via header, or find/create dynamically
+    let targetUser;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      try {
+        const authParts = req.headers.authorization.split(' ');
+        const token = authParts[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey_9918237');
+        targetUser = await User.findById(decoded.id);
+      } catch (err) {
+        // ignore token error
+      }
+    }
+
+    if (!targetUser) {
+      targetUser = await User.findOne({ email: contactEmail.toLowerCase() });
+      if (!targetUser) {
+        targetUser = await User.create({
+          name: contactEmail.split('@')[0],
+          email: contactEmail.toLowerCase(),
+          password: 'guest_' + Math.random().toString(36).substring(2, 10),
+          role: 'user'
+        });
+      }
     }
 
     const projects = await Project.find({ _id: { $in: projectIds } });
@@ -462,7 +529,7 @@ export const createQrOrder = async (req, res) => {
 
     const orderItems = projects.map(p => ({ project: p._id, priceAtPurchase: p.price, titleAtPurchase: p.title }));
     const order = await Order.create({
-      user: req.user._id,
+      user: targetUser._id,
       items: orderItems,
       totalAmount,
       discountAmount,
@@ -474,7 +541,20 @@ export const createQrOrder = async (req, res) => {
       contactPhone
     });
 
-    res.status(201).json({ success: true, message: 'Order submitted. Pending manual verification by admin.', orderId: order._id });
+    const token = jwt.sign({ id: targetUser._id }, process.env.JWT_SECRET || 'supersecretkey_9918237', { expiresIn: '30d' });
+
+    res.status(201).json({
+      success: true,
+      message: 'Order submitted. Pending manual verification by admin.',
+      orderId: order._id,
+      token,
+      user: {
+        _id: targetUser._id,
+        name: targetUser.name,
+        email: targetUser.email,
+        role: targetUser.role
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
