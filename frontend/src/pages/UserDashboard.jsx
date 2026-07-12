@@ -81,7 +81,12 @@ const UserDashboard = () => {
     try {
       const data = await request(`/projects/${projectId}/download-link`, 'GET');
       if (data.success && data.downloadUrl) {
-        window.location.href = data.downloadUrl;
+        const link = document.createElement('a');
+        link.href = data.downloadUrl;
+        link.setAttribute('target', '_blank');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
     } catch (error) {
       alert(error.message || 'Download link generation failed');

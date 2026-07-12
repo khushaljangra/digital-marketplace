@@ -361,6 +361,7 @@ export const getDownloadLink = async (req, res) => {
   try {
     const projectId = req.params.id;
     const userId = req.user._id;
+    const hostUrl = `${req.protocol}://${req.get('host')}`;
 
     if (!isDbConnected()) {
       const isOwner = req.user.email === 'user@marketplace.com' || mockDb.orders.some(o => o.user === userId && o.paymentStatus === 'paid' && o.items.some(i => i.project === projectId));
@@ -374,7 +375,7 @@ export const getDownloadLink = async (req, res) => {
       if (!project) {
         return res.status(404).json({ success: false, message: 'Project not found' });
       }
-      const downloadUrl = `http://localhost:5000/api/projects/download-secure?token=mock_download_token_${projectId}`;
+      const downloadUrl = `${hostUrl}/api/projects/download-secure?token=mock_download_token_${projectId}`;
       return res.json({ success: true, downloadUrl });
     }
 
@@ -414,7 +415,8 @@ export const getDownloadLink = async (req, res) => {
       fileName,
       userId.toString(),
       projectId.toString(),
-      order._id.toString()
+      order._id.toString(),
+      hostUrl
     );
 
     res.json({ success: true, downloadUrl });

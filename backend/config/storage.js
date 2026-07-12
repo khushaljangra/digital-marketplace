@@ -46,7 +46,7 @@ export const saveFileToStorage = async (file) => {
  * @param {string} orderId - Verified purchase order ID
  * @returns {string} Secure URL
  */
-export const generateSignedDownloadUrl = (fileKey, originalName, userId, projectId, orderId) => {
+export const generateSignedDownloadUrl = (fileKey, originalName, userId, projectId, orderId, host = null) => {
   // Use a secret to sign a temporary token for the file download
   const jwtSecret = process.env.JWT_SECRET || 'fallback_secret_for_jwt_tokens';
   
@@ -62,7 +62,7 @@ export const generateSignedDownloadUrl = (fileKey, originalName, userId, project
     { expiresIn: '15m' } // Token expires in 15 minutes
   );
 
-  const serverUrl = process.env.SERVER_URL || 'http://localhost:5000';
+  const serverUrl = host || process.env.SERVER_URL || 'http://localhost:5000';
   return `${serverUrl}/api/projects/download-secure?token=${token}`;
 };
 

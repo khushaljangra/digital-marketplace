@@ -213,6 +213,7 @@ export const verifyPayment = async (req, res) => {
     }
 
     // 4. Generate download links & send confirmation email
+    const hostUrl = `${req.protocol}://${req.get('host')}`;
     const downloadLinks = [];
     for (const item of order.items) {
       const downloadUrl = generateSignedDownloadUrl(
@@ -220,7 +221,8 @@ export const verifyPayment = async (req, res) => {
         item.project.fileName,
         order.user.toString(),
         item.project._id.toString(),
-        order._id.toString()
+        order._id.toString(),
+        hostUrl
       );
       downloadLinks.push({
         title: item.project.title,
@@ -569,6 +571,8 @@ export const verifyUtrOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
 
+    const hostUrl = `${req.protocol}://${req.get('host')}`;
+
     if (!isDbConnected()) {
       const order = mockDb.orders.find(o => o._id === orderId);
       if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
@@ -579,7 +583,7 @@ export const verifyUtrOrder = async (req, res) => {
       const user = mockDb.users.find(u => u._id === order.user);
       const downloadLinks = order.items.map(item => ({
         title: item.titleAtPurchase,
-        downloadUrl: `http://localhost:5000/api/projects/download-secure?token=mock_download_token_${item.project}`
+        downloadUrl: `${hostUrl}/api/projects/download-secure?token=mock_download_token_${item.project}`
       }));
       await sendPurchaseEmail(user ? user.email : 'user@marketplace.com', user ? user.name : 'Customer', order, downloadLinks);
 
@@ -600,7 +604,8 @@ export const verifyUtrOrder = async (req, res) => {
         item.project.fileName,
         order.user._id.toString(),
         item.project._id.toString(),
-        order._id.toString()
+        order._id.toString(),
+        hostUrl
       );
       downloadLinks.push({
         title: item.project.title,
