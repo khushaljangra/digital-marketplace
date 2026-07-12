@@ -800,9 +800,25 @@ const AdminDashboard = () => {
                         <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{o.user?.name || 'N/A'}</strong>
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{o.user?.email || 'N/A'}</span>
                         {o.paymentMethod === 'qr_code' && (
-                          <span style={{ display: 'block', fontSize: '11px', color: 'var(--accent)', marginTop: '4px', fontWeight: 600 }}>
-                            UPI QR Code (UTR: {o.transactionRef})
-                          </span>
+                          <div style={{
+                            marginTop: '8px',
+                            padding: '6px 8px',
+                            borderRadius: '6px',
+                            background: 'var(--bg-tertiary)',
+                            borderLeft: '3px solid var(--accent)',
+                            fontSize: '11px',
+                            lineHeight: '1.4'
+                          }}>
+                            <span style={{ display: 'block', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                              UTR: {o.transactionRef}
+                            </span>
+                            <span style={{ display: 'block', color: 'var(--text-secondary)' }}>
+                              Pay Email: {o.contactEmail || 'N/A'}
+                            </span>
+                            <span style={{ display: 'block', color: 'var(--text-secondary)' }}>
+                              Phone: {o.contactPhone || 'N/A'}
+                            </span>
+                          </div>
                         )}
                       </td>
                       <td style={{ padding: '12px 8px' }}>

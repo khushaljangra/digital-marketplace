@@ -31,10 +31,19 @@ const Cart = () => {
   const [paymentMethod] = useState('qr_code'); // Always qr_code
   const [showQrModal, setShowQrModal] = useState(false);
   const [utrNumber, setUtrNumber] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   const [qrSubmitLoading, setQrSubmitLoading] = useState(false);
   const [utrError, setUtrError] = useState('');
 
   const navigate = useNavigate();
+
+  // Prefill email when user changes or modal opens
+  useEffect(() => {
+    if (user?.email) {
+      setContactEmail(user.email);
+    }
+  }, [user, showQrModal]);
 
   const handleApplyCouponSubmit = async (e) => {
     e.preventDefault();
@@ -150,6 +159,14 @@ const Cart = () => {
     e.preventDefault();
     setUtrError('');
 
+    if (!contactEmail || !contactEmail.includes('@')) {
+      setUtrError('Please enter a valid email address.');
+      return;
+    }
+    if (!contactPhone || contactPhone.trim().length < 10) {
+      setUtrError('Please enter a valid 10-digit phone number.');
+      return;
+    }
     if (!utrNumber || utrNumber.trim().length !== 12 || isNaN(utrNumber)) {
       setUtrError('Please enter a valid 12-digit numeric UTR/Reference Number.');
       return;
@@ -162,6 +179,8 @@ const Cart = () => {
         projectIds,
         couponCode: coupon?.code,
         transactionRef: utrNumber.trim(),
+        contactEmail: contactEmail.trim(),
+        contactPhone: contactPhone.trim(),
       });
 
       if (data.success) {
@@ -434,6 +453,40 @@ const Cart = () => {
 
             {/* UTR Input Form */}
             <form onSubmit={handleQrSubmit}>
+              <div style={{ textAlign: 'left', marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>
+                  Verification Email Address
+                </label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="Enter email for delivery (e.g. name@mail.com)"
+                  value={contactEmail}
+                  onChange={(e) => {
+                    setContactEmail(e.target.value);
+                    setUtrError('');
+                  }}
+                  required
+                />
+              </div>
+
+              <div style={{ textAlign: 'left', marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>
+                  Contact Phone Number
+                </label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  placeholder="Enter 10-digit phone number..."
+                  value={contactPhone}
+                  onChange={(e) => {
+                    setContactPhone(e.target.value);
+                    setUtrError('');
+                  }}
+                  required
+                />
+              </div>
+
               <div style={{ textAlign: 'left', marginBottom: '24px' }}>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>
                   12-Digit UPI Ref No. / UTR Number

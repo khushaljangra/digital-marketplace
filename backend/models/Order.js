@@ -51,6 +51,14 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    contactEmail: {
+      type: String,
+      default: null,
+    },
+    contactPhone: {
+      type: String,
+      default: null,
+    },
     razorpayOrderId: {
       type: String,
       required: false,

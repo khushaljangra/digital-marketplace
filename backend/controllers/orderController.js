@@ -369,7 +369,7 @@ export const getAllOrders = async (req, res) => {
  * @access  Private
  */
 export const createQrOrder = async (req, res) => {
-  const { projectIds, couponCode, transactionRef } = req.body;
+  const { projectIds, couponCode, transactionRef, contactEmail, contactPhone } = req.body;
 
   try {
     if (!projectIds || projectIds.length === 0) {
@@ -377,6 +377,12 @@ export const createQrOrder = async (req, res) => {
     }
     if (!transactionRef || transactionRef.trim().length !== 12 || isNaN(transactionRef)) {
       return res.status(400).json({ success: false, message: 'Invalid 12-digit UPI UTR Transaction Reference Number' });
+    }
+    if (!contactEmail || !contactEmail.includes('@')) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
+    }
+    if (!contactPhone || contactPhone.trim().length < 10) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid phone number.' });
     }
 
     if (!isDbConnected()) {
@@ -417,6 +423,8 @@ export const createQrOrder = async (req, res) => {
         paymentStatus: 'pending_verification',
         paymentMethod: 'qr_code',
         transactionRef,
+        contactEmail,
+        contactPhone,
         createdAt: new Date()
       };
 
@@ -461,7 +469,9 @@ export const createQrOrder = async (req, res) => {
       couponApplied: couponCode ? couponCode.toUpperCase() : null,
       paymentStatus: 'pending_verification',
       paymentMethod: 'qr_code',
-      transactionRef
+      transactionRef,
+      contactEmail,
+      contactPhone
     });
 
     res.status(201).json({ success: true, message: 'Order submitted. Pending manual verification by admin.', orderId: order._id });
