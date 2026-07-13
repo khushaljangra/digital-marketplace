@@ -6,7 +6,7 @@ import { request } from '../utils/api';
 import { ShoppingCart, Trash2, Tag, Percent, ArrowRight, ShieldCheck, QrCode } from 'lucide-react';
 
 // Configure your personal UPI ID here
-const MERCHANT_UPI_ID = 'choyal034-1@oksbi';
+const MERCHANT_UPI_ID = '7303354598@axl';
 
 const Cart = () => {
   const { user, loadProfile } = useAuth();
