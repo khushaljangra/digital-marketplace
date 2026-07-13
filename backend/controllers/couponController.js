@@ -1,4 +1,6 @@
 import Coupon from '../models/Coupon.js';
+import Subscriber from '../models/Subscriber.js';
+import { sendNewCouponEmail } from '../config/mail.js';
 import { isDbConnected, mockDb } from '../config/mockDb.js';
 
 /**
@@ -126,9 +128,20 @@ export const createCoupon = async (req, res) => {
       discountValue,
       minOrderAmount,
       maxDiscount,
-      expiryDate: formattedExpiryDate,
       usageLimit,
     });
+
+    // Fetch all subscribers and broadcast in background
+    if (isDbConnected()) {
+      Subscriber.find({}).then((subs) => {
+        sendNewCouponEmail(subs, coupon);
+      }).catch((err) => {
+        console.error('Error fetching subscribers for coupon broadcast:', err.message);
+      });
+    } else {
+      const subs = mockDb.subscribers || [];
+      sendNewCouponEmail(subs, coupon);
+    }
 
     res.status(201).json({ success: true, coupon });
   } catch (error) {

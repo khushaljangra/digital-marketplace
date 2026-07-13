@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import Project from '../models/Project.js';
+import Subscriber from '../models/Subscriber.js';
+import { sendNewProjectEmail } from '../config/mail.js';
 import Order from '../models/Order.js';
 import DownloadLog from '../models/DownloadLog.js';
 import {
@@ -211,6 +213,18 @@ export const createProject = async (req, res) => {
         },
       ],
     });
+
+    // Fetch all subscribers and broadcast in background
+    if (isDbConnected()) {
+      Subscriber.find({}).then((subs) => {
+        sendNewProjectEmail(subs, project);
+      }).catch((err) => {
+        console.error('Error fetching subscribers for project broadcast:', err.message);
+      });
+    } else {
+      const subs = mockDb.subscribers || [];
+      sendNewProjectEmail(subs, project);
+    }
 
     res.status(201).json({ success: true, project });
   } catch (error) {

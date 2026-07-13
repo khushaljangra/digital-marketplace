@@ -94,3 +94,114 @@ export const sendPurchaseEmail = async (toEmail, userName, order, downloadLinks)
     console.log('-------------------------\n');
   }
 };
+
+/**
+ * Broadcast new project notification to subscribers
+ * @param {Array} subscribersList - Subscriber array
+ * @param {Object} project - The project details
+ */
+export const sendNewProjectEmail = async (subscribersList, project) => {
+  if (!subscribersList || subscribersList.length === 0) return;
+
+  const emails = subscribersList.map((s) => s.email);
+
+  const htmlContent = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #334155; line-height: 1.6;">
+      <h2 style="color: #6366f1; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">🚀 New Source Code Available!</h2>
+      <p>Hello Developer,</p>
+      <p>We are excited to announce that a new production-ready project is now live on our marketplace!</p>
+      
+      <div style="margin: 20px 0; padding: 20px; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h3 style="margin-top: 0; color: #1e293b;">${project.title}</h3>
+        <p style="color: #64748b; font-size: 14px;">${project.description ? project.description.slice(0, 180) : ''}...</p>
+        <p><strong>Category:</strong> <span style="text-transform: capitalize;">${project.category}</span></p>
+        <p><strong>Price:</strong> INR ${project.price}</p>
+        
+        <a href="https://codewithkj.vercel.app/projects/${project._id}" style="background: #6366f1; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; margin-top: 10px;">View Project Details</a>
+      </div>
+
+      <p style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 11px; color: #94a3b8;">
+        You received this email because you subscribed to our newsletter. If you wish to unsubscribe, contact support at tempphone300@gmail.com.
+      </p>
+    </div>
+  `;
+
+  if (transporter) {
+    try {
+      await transporter.sendMail({
+        from: smtpFrom,
+        bcc: emails,
+        subject: `🚀 New Launch: ${project.title} is now available!`,
+        html: htmlContent,
+      });
+      console.log(`New project broadcast email successfully sent to ${emails.length} subscribers.`);
+    } catch (error) {
+      console.error('Error broadcasting new project email:', error.message);
+    }
+  } else {
+    console.log('\n--- NEW PROJECT BROADCAST EMAIL (MOCK) ---');
+    console.log(`BCC: ${emails.join(', ')}`);
+    console.log(`Subject: New Launch: ${project.title}`);
+    console.log(`Link: https://codewithkj.vercel.app/projects/${project._id}`);
+    console.log('-------------------------------------------\n');
+  }
+};
+
+/**
+ * Broadcast new coupon notification to subscribers
+ * @param {Array} subscribersList - Subscriber array
+ * @param {Object} coupon - The coupon details
+ */
+export const sendNewCouponEmail = async (subscribersList, coupon) => {
+  if (!subscribersList || subscribersList.length === 0) return;
+
+  const emails = subscribersList.map((s) => s.email);
+
+  const htmlContent = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #334155; line-height: 1.6;">
+      <h2 style="color: #10b981; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">🎉 Exclusive Discount Coupon Created!</h2>
+      <p>Hello Developer,</p>
+      <p>Here is an exclusive coupon code for your next purchase on our marketplace!</p>
+      
+      <div style="margin: 20px 0; padding: 20px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; text-align: center;">
+        <p style="margin: 0 0 10px 0; color: #166534; font-size: 14px; font-weight: 600;">USE COUPON CODE AT CHECKOUT</p>
+        <span style="font-size: 32px; font-weight: 800; color: #047857; letter-spacing: 2px; background: #d1fae5; padding: 8px 24px; border-radius: 8px; border: 2px dashed #059669; display: inline-block;">${coupon.code}</span>
+        
+        <p style="margin: 15px 0 0 0; color: #065f46; font-size: 15px;">
+          Get <strong>${coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : `INR ${coupon.discountValue} OFF`}</strong>!
+        </p>
+        <p style="margin: 5px 0 0 0; color: #047857; font-size: 12px;">
+          Valid until: ${new Date(coupon.expiryDate).toLocaleDateString()}
+        </p>
+      </div>
+
+      <p style="text-align: center; margin-top: 20px;">
+        <a href="https://codewithkj.vercel.app/projects" style="background: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Browse Projects Directory</a>
+      </p>
+
+      <p style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 11px; color: #94a3b8;">
+        You received this email because you subscribed to our newsletter. If you wish to unsubscribe, contact support at tempphone300@gmail.com.
+      </p>
+    </div>
+  `;
+
+  if (transporter) {
+    try {
+      await transporter.sendMail({
+        from: smtpFrom,
+        bcc: emails,
+        subject: `🎉 Exclusive offer: Get discount using code ${coupon.code}!`,
+        html: htmlContent,
+      });
+      console.log(`New coupon broadcast email successfully sent to ${emails.length} subscribers.`);
+    } catch (error) {
+      console.error('Error broadcasting new coupon email:', error.message);
+    }
+  } else {
+    console.log('\n--- NEW COUPON BROADCAST EMAIL (MOCK) ---');
+    console.log(`BCC: ${emails.join(', ')}`);
+    console.log(`Subject: Discount coupon code ${coupon.code}!`);
+    console.log(`Discount: ${coupon.discountValue}`);
+    console.log('-----------------------------------------\n');
+  }
+};
