@@ -176,3 +176,25 @@ export const deleteReview = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * @desc    Get all reviews across all projects (Admin only)
+ * @route   GET /api/reviews
+ * @access  Private/Admin
+ */
+export const getAllReviews = async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      return res.json({ success: true, count: mockDb.reviews.length, reviews: mockDb.reviews });
+    }
+
+    const reviews = await Review.find()
+      .populate('project', 'title')
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, count: reviews.length, reviews });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

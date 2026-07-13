@@ -255,3 +255,89 @@ Advisor:`;
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * @desc    Get all newsletter subscribers (Admin only)
+ * @route   GET /api/support/subscribers
+ * @access  Private/Admin
+ */
+export const getSubscribers = async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      const subs = (mockDb.subscribers || []).map(s => {
+        const u = mockDb.users.find(usr => usr.email.toLowerCase() === s.email.toLowerCase());
+        return {
+          _id: s._id || `sub_mock_${s.email}`,
+          email: s.email,
+          createdAt: s.subscribedAt || s.createdAt || new Date(),
+          user: u ? { name: u.name } : null
+        };
+      });
+      return res.json({ success: true, count: subs.length, subscribers: subs });
+    }
+
+    const subscribers = await Subscriber.find().sort({ createdAt: -1 });
+    
+    // Map and try to find matching user name for each email
+    const populatedSubscribers = await Promise.all(subscribers.map(async (sub) => {
+      const matchedUser = await User.findOne({ email: sub.email }).select('name');
+      return {
+        _id: sub._id,
+        email: sub.email,
+        createdAt: sub.createdAt,
+        user: matchedUser ? { name: matchedUser.name } : null
+      };
+    }));
+
+    res.json({ success: true, count: populatedSubscribers.length, subscribers: populatedSubscribers });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Unsubscribe / delete subscriber (Admin only)
+ * @route   DELETE /api/support/subscribers/:id
+ * @access  Private/Admin
+ */
+export const deleteSubscriber = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (!isDbConnected()) {
+      mockDb.subscribers = (mockDb.subscribers || []).filter(s => s.email !== id && s._id !== id);
+      return res.json({ success: true, message: 'Subscriber removed successfully' });
+    }
+
+    const sub = await Subscriber.findById(id);
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Subscriber not found' });
+    }
+
+    await sub.deleteOne();
+    res.json({ success: true, message: 'Subscriber removed successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Delete support chat / tickets for a user (Admin only)
+ * @route   DELETE /api/support/chat/:userId
+ * @access  Private/Admin
+ */
+export const deleteUserChat = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    if (!isDbConnected()) {
+      mockDb.support = mockDb.support.filter(m => m.user !== userId);
+      return res.json({ success: true, message: 'Support chat ticket deleted successfully' });
+    }
+
+    await SupportMessage.deleteMany({ user: userId });
+    res.json({ success: true, message: 'Support chat ticket deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

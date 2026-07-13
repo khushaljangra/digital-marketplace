@@ -18,6 +18,7 @@ import {
   Layers,
   Lightbulb,
   ThumbsUp,
+  Star,
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -64,6 +65,14 @@ const AdminDashboard = () => {
 
   // Edit Project State
   const [editingProject, setEditingProject] = useState(null);
+
+  // Subscribers State
+  const [subscribers, setSubscribers] = useState([]);
+  const [subscribersLoading, setSubscribersLoading] = useState(false);
+
+  // Reviews State
+  const [allReviews, setAllReviews] = useState([]);
+  const [allReviewsLoading, setAllReviewsLoading] = useState(false);
 
   const fetchDashboardStats = async () => {
     try {
@@ -126,6 +135,73 @@ const AdminDashboard = () => {
       console.error('Error fetching feature requests:', error.message);
     } finally {
       setFeatureRequestsLoading(false);
+    }
+  };
+
+  const fetchSubscribers = async () => {
+    setSubscribersLoading(true);
+    try {
+      const data = await request('/support/subscribers', 'GET');
+      if (data.success) {
+        setSubscribers(data.subscribers);
+      }
+    } catch (error) {
+      console.error('Error fetching subscribers:', error.message);
+    } finally {
+      setSubscribersLoading(false);
+    }
+  };
+
+  const fetchAllReviews = async () => {
+    setAllReviewsLoading(true);
+    try {
+      const data = await request('/reviews', 'GET');
+      if (data.success) {
+        setAllReviews(data.reviews);
+      }
+    } catch (error) {
+      console.error('Error fetching all reviews:', error.message);
+    } finally {
+      setAllReviewsLoading(false);
+    }
+  };
+
+  const handleDeleteSubscriber = async (subId) => {
+    if (!window.confirm('Are you sure you want to delete this subscriber?')) return;
+    try {
+      const data = await request(`/support/subscribers/${subId}`, 'DELETE');
+      if (data.success) {
+        alert('Subscriber deleted successfully!');
+        setSubscribers(subscribers.filter(s => s._id !== subId));
+      }
+    } catch (error) {
+      alert(error.message || 'Delete failed');
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this review?')) return;
+    try {
+      const data = await request(`/reviews/${reviewId}`, 'DELETE');
+      if (data.success) {
+        alert('Review deleted successfully!');
+        setAllReviews(allReviews.filter(r => r._id !== reviewId));
+      }
+    } catch (error) {
+      alert(error.message || 'Delete failed');
+    }
+  };
+
+  const handleDeleteFeatureRequest = async (requestId) => {
+    if (!window.confirm('Are you sure you want to delete this feature bid?')) return;
+    try {
+      const data = await request(`/feature-requests/${requestId}`, 'DELETE');
+      if (data.success) {
+        alert('Feature bid deleted successfully!');
+        setFeatureRequests(featureRequests.filter(r => r._id !== requestId));
+      }
+    } catch (error) {
+      alert(error.message || 'Delete failed');
     }
   };
 
@@ -213,6 +289,8 @@ const AdminDashboard = () => {
     fetchCoupons();
     fetchOrders();
     fetchAllFeatureRequests();
+    fetchSubscribers();
+    fetchAllReviews();
   }, []);
 
   const handleProductSubmit = async (e) => {
@@ -343,11 +421,13 @@ const AdminDashboard = () => {
         marginBottom: '32px'
       }}>
         {[
-          { id: 'analytics', label: 'Dashboard Stats', icon: <LayoutDashboard size={16} /> },
-          { id: 'products', label: 'Manage Products', icon: <FolderOpen size={16} /> },
-          { id: 'coupons', label: 'Coupons Manager', icon: <Ticket size={16} /> },
-          { id: 'orders', label: 'Customer Transactions', icon: <ShoppingCart size={16} /> },
+          { id: 'analytics', label: 'Stats', icon: <LayoutDashboard size={16} /> },
+          { id: 'products', label: 'Products', icon: <FolderOpen size={16} /> },
+          { id: 'coupons', label: 'Coupons', icon: <Ticket size={16} /> },
+          { id: 'orders', label: 'Transactions', icon: <ShoppingCart size={16} /> },
           { id: 'feature_requests', label: 'Feature Bids', icon: <Lightbulb size={16} /> },
+          { id: 'subscribers', label: 'Subscribers', icon: <Users size={16} /> },
+          { id: 'reviews', label: 'Reviews', icon: <Star size={16} /> },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -1076,7 +1156,124 @@ const AdminDashboard = () => {
                               Mark Completed
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleDeleteFeatureRequest(req._id)}
+                            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '4px 0', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            title="Delete Feature Request"
+                          >
+                            <Trash2 size={12} /> <span style={{ fontSize: '10px' }}>Delete Bid</span>
+                          </button>
                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Subscribers Manager Tab */}
+      {activeTab === 'subscribers' && (
+        <div className="glass-card">
+          <h3 style={{ fontSize: '18px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '20px' }}>
+            Newsletter Subscribers Log
+          </h3>
+          {subscribersLoading ? (
+            <Loader />
+          ) : subscribers.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '30px 0' }}>No email subscribers found.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ padding: '12px 8px' }}>Subscriber Email</th>
+                    <th style={{ padding: '12px 8px' }}>Matched Name</th>
+                    <th style={{ padding: '12px 8px' }}>Subscribed On</th>
+                    <th style={{ padding: '12px 8px' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subscribers.map((sub) => (
+                    <tr key={sub._id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px 8px', color: 'var(--primary)', fontWeight: 'bold' }}>{sub.email}</td>
+                      <td style={{ padding: '12px 8px' }}>{sub.user?.name || <em style={{ color: 'var(--text-muted)' }}>Non-Registered</em>}</td>
+                      <td style={{ padding: '12px 8px' }}>{new Date(sub.createdAt).toLocaleDateString()}</td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <button
+                          onClick={() => handleDeleteSubscriber(sub._id)}
+                          style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                          title="Unsubscribe / Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reviews Tab */}
+      {activeTab === 'reviews' && (
+        <div className="glass-card">
+          <h3 style={{ fontSize: '18px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '20px' }}>
+            Customer Reviews Log
+          </h3>
+          {allReviewsLoading ? (
+            <Loader />
+          ) : allReviews.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '30px 0' }}>No customer reviews recorded yet.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ padding: '12px 8px' }}>Project Info</th>
+                    <th style={{ padding: '12px 8px' }}>User Details</th>
+                    <th style={{ padding: '12px 8px' }}>Rating & Comment</th>
+                    <th style={{ padding: '12px 8px' }}>Review Date</th>
+                    <th style={{ padding: '12px 8px' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allReviews.map((rev) => (
+                    <tr key={rev._id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px 8px' }}>
+                        <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{rev.project?.title || 'Unknown Project'}</strong>
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{rev.user?.name || 'Customer'}</strong>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{rev.user?.email || 'N/A'}</span>
+                      </td>
+                      <td style={{ padding: '12px 8px', maxWidth: '300px' }}>
+                        <div style={{ display: 'flex', color: '#fbbf24', marginBottom: '4px', gap: '2px' }}>
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              size={12}
+                              fill={i < rev.rating ? '#fbbf24' : 'none'}
+                              stroke="#fbbf24"
+                            />
+                          ))}
+                        </div>
+                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>{rev.comment}</p>
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>{new Date(rev.createdAt).toLocaleDateString()}</td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <button
+                          onClick={() => handleDeleteReview(rev._id)}
+                          style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                          title="Delete Review"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))}

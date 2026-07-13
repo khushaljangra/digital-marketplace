@@ -5,6 +5,9 @@ import {
   getAdminChats,
   subscribeNewsletter,
   chatAdvisor,
+  getSubscribers,
+  deleteSubscriber,
+  deleteUserChat,
 } from '../controllers/supportController.js';
 import { protect, admin } from '../middleware/auth.js';
 
@@ -12,6 +15,9 @@ const router = express.Router();
 
 router.post('/subscribe', subscribeNewsletter);
 router.post('/ai-chat', chatAdvisor);
+router.get('/subscribers', protect, admin, getSubscribers);
+router.delete('/subscribers/:id', protect, admin, deleteSubscriber);
+router.delete('/chat/:userId', protect, admin, deleteUserChat);
 
 router.route('/')
   .get(protect, getMessages)

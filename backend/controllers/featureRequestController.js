@@ -222,3 +222,29 @@ export const updateFeatureRequestStatus = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Delete a feature request (Admin only)
+ * @route   DELETE /api/feature-requests/:id
+ * @access  Private/Admin
+ */
+export const deleteFeatureRequest = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (!isDbConnected()) {
+      mockDb.featureRequests = mockDb.featureRequests.filter((r) => r._id !== id);
+      return res.json({ success: true, message: 'Feature request deleted successfully' });
+    }
+
+    const requestObj = await FeatureRequest.findById(id);
+    if (!requestObj) {
+      return res.status(404).json({ success: false, message: 'Feature request not found' });
+    }
+
+    await requestObj.deleteOne();
+    res.json({ success: true, message: 'Feature request deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

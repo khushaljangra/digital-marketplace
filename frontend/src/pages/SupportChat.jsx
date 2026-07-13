@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { request } from '../utils/api';
 import Loader from '../components/Loader';
-import { Send, MessageSquare, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Send, MessageSquare, ShieldAlert, ArrowLeft, Trash2 } from 'lucide-react';
 
 const SupportChat = () => {
   const { user } = useAuth();
@@ -39,6 +39,19 @@ const SupportChat = () => {
       }
     } catch (error) {
       console.error('Error fetching admin chats list:', error.message);
+    }
+  };
+
+  const handleDeleteChat = async (userIdToDelete) => {
+    if (!window.confirm('Are you sure you want to permanently delete this chat ticket and all messages?')) return;
+    try {
+      const data = await request(`/support/chat/${userIdToDelete}`, 'DELETE');
+      if (data.success) {
+        alert('Support ticket deleted successfully!');
+        setChatsList(chatsList.filter(chat => chat.userId !== userIdToDelete));
+      }
+    } catch (error) {
+      alert(error.message || 'Delete failed');
     }
   };
 
@@ -188,9 +201,30 @@ const SupportChat = () => {
                       Last Message: {chat.lastMessage}
                     </p>
                   </div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    {new Date(chat.lastMessageAt).toLocaleTimeString()}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {new Date(chat.lastMessageAt).toLocaleTimeString()}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteChat(chat.userId);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#f87171',
+                        cursor: 'pointer',
+                        padding: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Delete Chat Ticket"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
