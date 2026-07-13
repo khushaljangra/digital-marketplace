@@ -149,6 +149,19 @@ const Register = () => {
             </div>
           </div>
 
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%)',
+            border: '1px solid var(--border)',
+            padding: '12px 14px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.4,
+            marginBottom: '14px'
+          }}>
+            💡 <strong>Invite Friends & Learn for Free!</strong> Share your referral link with developer friends. Every time a friend registers with your link, we credit <strong>INR 100</strong> straight to your wallet balance. Buy premium projects for free!
+          </div>
+
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>
               Referral Code (Optional)

@@ -654,3 +654,29 @@ export const rejectUtrOrder = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * @desc    Delete transaction / order (Admin only)
+ * @route   DELETE /api/orders/:id
+ * @access  Private/Admin
+ */
+export const deleteOrder = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    if (!isDbConnected()) {
+      mockDb.orders = mockDb.orders.filter(o => o._id !== orderId);
+      return res.json({ success: true, message: 'Order transaction deleted successfully' });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    await order.deleteOne();
+    res.json({ success: true, message: 'Order transaction deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

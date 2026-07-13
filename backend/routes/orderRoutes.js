@@ -8,6 +8,7 @@ import {
   createQrOrder,
   verifyUtrOrder,
   rejectUtrOrder,
+  deleteOrder,
 } from '../controllers/orderController.js';
 import { protect, admin } from '../middleware/auth.js';
 
@@ -21,5 +22,6 @@ router.post('/reject-utr/:id', protect, admin, rejectUtrOrder);
 router.get('/my-purchases', protect, getMyPurchasedProjects);
 router.get('/download-history', protect, getDownloadHistory);
 router.get('/', protect, admin, getAllOrders);
+router.delete('/:id', protect, admin, deleteOrder);
 
 export default router;

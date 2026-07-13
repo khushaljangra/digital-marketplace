@@ -165,6 +165,20 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this transaction record?')) return;
+    try {
+      const data = await request(`/orders/${orderId}`, 'DELETE');
+      if (data.success) {
+        alert('Transaction record deleted successfully.');
+        setOrders(orders.filter((o) => o._id !== orderId));
+        await fetchDashboardStats();
+      }
+    } catch (error) {
+      alert(error.message || 'Delete failed');
+    }
+  };
+
   useEffect(() => {
     fetchDashboardStats();
     fetchProjects();
@@ -835,6 +849,7 @@ const AdminDashboard = () => {
                     <th style={{ padding: '12px 8px' }}>Purchased Catalog Item(s)</th>
                     <th style={{ padding: '12px 8px' }}>Paid Total</th>
                     <th style={{ padding: '12px 8px' }}>Status</th>
+                    <th style={{ padding: '12px 8px' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -917,6 +932,15 @@ const AdminDashboard = () => {
                             {o.paymentStatus.toUpperCase()}
                           </span>
                         )}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <button
+                          onClick={() => handleDeleteOrder(o._id)}
+                          style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '4px' }}
+                          title="Delete Transaction Record"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))}

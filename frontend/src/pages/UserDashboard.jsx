@@ -348,12 +348,12 @@ const UserDashboard = () => {
                     gap: '20px',
                     padding: '20px',
                     borderRadius: '8px',
-                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%)',
                     border: '1px solid var(--border)'
                   }}>
                     <Gift size={32} style={{ color: 'var(--primary)', flexShrink: 0 }} />
                     <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                      <strong>Program Info:</strong> Share this link. For every friend who registers with your link, we instantly credit <strong>INR 100</strong> to your referral earnings balance. Use credits to buy projects for free!
+                      <strong>Invite Friends & Learn for Free!</strong> Share your referral link with developer friends. Every time a friend registers with your link, we credit <strong>INR 100</strong> straight to your wallet balance. Buy premium projects for free!
                     </p>
                   </div>
                 </div>
