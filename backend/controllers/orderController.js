@@ -436,6 +436,9 @@ export const createQrOrder = async (req, res) => {
         if (coupon) {
           if (coupon.discountType === 'percentage') {
             discountAmount = (subtotal * coupon.discountValue) / 100;
+            if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+              discountAmount = coupon.maxDiscount;
+            }
           } else {
             discountAmount = coupon.discountValue;
           }
@@ -522,6 +525,9 @@ export const createQrOrder = async (req, res) => {
       if (coupon && coupon.isValid(subtotal)) {
         if (coupon.discountType === 'percentage') {
           discountAmount = (subtotal * coupon.discountValue) / 100;
+          if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+            discountAmount = coupon.maxDiscount;
+          }
         } else {
           discountAmount = coupon.discountValue;
         }

@@ -88,6 +88,9 @@ export const createCoupon = async (req, res) => {
   const { code, discountType, discountValue, minOrderAmount, maxDiscount, expiryDate, usageLimit } = req.body;
 
   try {
+    const formattedExpiryDate = new Date(expiryDate);
+    formattedExpiryDate.setHours(23, 59, 59, 999);
+
     if (!isDbConnected()) {
       const couponExists = mockDb.coupons.some(c => c.code === code.toUpperCase());
       if (couponExists) {
@@ -101,7 +104,7 @@ export const createCoupon = async (req, res) => {
         discountValue: Number(discountValue),
         minOrderAmount: Number(minOrderAmount || 0),
         maxDiscount: maxDiscount ? Number(maxDiscount) : null,
-        expiryDate: new Date(expiryDate),
+        expiryDate: formattedExpiryDate,
         usageLimit: usageLimit ? Number(usageLimit) : null,
         usedCount: 0,
         isActive: true,
@@ -123,7 +126,7 @@ export const createCoupon = async (req, res) => {
       discountValue,
       minOrderAmount,
       maxDiscount,
-      expiryDate,
+      expiryDate: formattedExpiryDate,
       usageLimit,
     });
 
