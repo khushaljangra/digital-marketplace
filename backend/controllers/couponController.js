@@ -176,3 +176,24 @@ export const deleteCoupon = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * @desc    Get the latest active coupon (Public)
+ * @route   GET /api/coupons/latest-active
+ * @access  Public
+ */
+export const getLatestActiveCoupon = async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      const activeCoupons = mockDb.coupons.filter(c => c.isActive && new Date() <= new Date(c.expiryDate));
+      const latest = activeCoupons.length > 0 ? activeCoupons[activeCoupons.length - 1] : null;
+      return res.json({ success: true, coupon: latest });
+    }
+
+    const latest = await Coupon.findOne({ isActive: true, expiryDate: { $gt: new Date() } }).sort({ createdAt: -1 });
+    res.json({ success: true, coupon: latest });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

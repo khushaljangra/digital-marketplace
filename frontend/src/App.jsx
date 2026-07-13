@@ -11,6 +11,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import PromoBanner from './components/PromoBanner';
 
 // Page Views
 import Landing from './pages/Landing';
@@ -38,7 +39,8 @@ function App() {
               color: 'var(--text-primary)'
             }}>
               
-              {/* Top Navigation */}
+              {/* Promo Banner & Navigation */}
+              <PromoBanner />
               <Navbar />
 
               {/* Page Viewport */}
