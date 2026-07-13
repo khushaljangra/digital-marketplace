@@ -1,5 +1,7 @@
 import SupportMessage from '../models/SupportMessage.js';
 import User from '../models/User.js';
+import Project from '../models/Project.js';
+import Subscriber from '../models/Subscriber.js';
 import { isDbConnected, mockDb } from '../config/mockDb.js';
 
 /**
@@ -125,6 +127,130 @@ export const getAdminChats = async (req, res) => {
     );
 
     res.json({ success: true, chats });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Subscribe to email newsletter (Public)
+ * @route   POST /api/support/subscribe
+ * @access  Public
+ */
+export const subscribeNewsletter = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email address is required' });
+    }
+
+    if (!isDbConnected()) {
+      const alreadySubbed = mockDb.subscribers && mockDb.subscribers.some(s => s.email === email.toLowerCase());
+      if (alreadySubbed) {
+        return res.status(400).json({ success: false, message: 'You are already subscribed!' });
+      }
+      if (!mockDb.subscribers) mockDb.subscribers = [];
+      mockDb.subscribers.push({ email: email.toLowerCase(), subscribedAt: new Date() });
+      return res.status(201).json({ success: true, message: 'Awesome! Thank you for subscribing.' });
+    }
+
+    const alreadySubbed = await Subscriber.findOne({ email: email.toLowerCase() });
+    if (alreadySubbed) {
+      return res.status(400).json({ success: false, message: 'You are already subscribed!' });
+    }
+
+    await Subscriber.create({ email });
+    res.status(201).json({ success: true, message: 'Awesome! Thank you for subscribing.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Serverless AI chat assistant (Public)
+ * @route   POST /api/support/ai-chat
+ * @access  Public
+ */
+export const chatAdvisor = async (req, res) => {
+  const { message, history } = req.body;
+
+  try {
+    if (!message) {
+      return res.status(400).json({ success: false, message: 'Message content is required' });
+    }
+
+    // Fetch catalog projects dynamically to construct Gemini context
+    let projectsList = [];
+    if (!isDbConnected()) {
+      projectsList = mockDb.projects;
+    } else {
+      projectsList = await Project.find({}, 'title description price category techStack');
+    }
+
+    const projectsSummary = projectsList.map(p => 
+      `- Title: ${p.title}\n  Category: ${p.category}\n  Price: INR ${p.price}\n  Tech Stack: ${p.techStack.join(', ')}\n  Description: ${p.description}`
+    ).join('\n\n');
+
+    const systemPrompt = `You are "ApexAdvisor", the official AI Project Assistant for ApexMarket (a premium digital marketplace for developer templates and source codes).
+Your purpose is to help buyers choose the best templates, explain the technologies they use, and recommend specific items from our catalog.
+
+Here is the current catalog of available projects on ApexMarket:
+${projectsSummary}
+
+Rules:
+1. Suggest specific project titles from the catalog. Do not recommend fake projects.
+2. If a user asks for something we don't have, explain politely and suggest they submit a Custom Feature Request on the project details page!
+3. Be professional, concise, and developer-friendly. Avoid long paragraphs. Format with markdown if helpful.
+
+Conversation History:
+${history ? history.map(h => `${h.sender === 'user' ? 'User' : 'Advisor'}: ${h.text}`).join('\n') : ''}
+User: ${message}
+Advisor:`;
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }]
+        })
+      });
+      
+      const responseData = await response.json();
+      const reply = responseData?.candidates?.[0]?.content?.parts?.[0]?.text || 'I am having trouble processing that right now. Please try again.';
+      return res.json({ success: true, reply });
+    }
+
+    // Smart local fallback if GEMINI_API_KEY is not defined
+    const userQuery = message.toLowerCase();
+    let reply = "Hello! I am ApexAdvisor, your AI project assistant. How can I help you find the right source code template today?";
+    
+    if (userQuery.includes('chat') || userQuery.includes('socket')) {
+      const chatProj = projectsList.find(p => p.title.toLowerCase().includes('chat') || p.description.toLowerCase().includes('chat'));
+      reply = chatProj 
+        ? `I highly recommend the **${chatProj.title}**! It's a premium MERN template using WebSockets for real-time collaboration. It costs INR ${chatProj.price} and uses: ${chatProj.techStack.join(', ')}.`
+        : "We have awesome MERN templates that utilize WebSocket connections. Go to the /projects page to browse the details!";
+    } else if (userQuery.includes('aws') || userQuery.includes('lambda') || userQuery.includes('serverless')) {
+      const awsProjs = projectsList.filter(p => p.techStack.some(t => t.toLowerCase().includes('aws') || t.toLowerCase().includes('lambda')));
+      if (awsProjs.length > 0) {
+        reply = `For serverless or AWS pipelines, we have: ${awsProjs.map(p => `\n- **${p.title}** (INR ${p.price})`).join('')}. They come with complete S3 triggers and API Gateway configs!`;
+      } else {
+        reply = "We offer cloud infrastructure templates including AWS Serverless pipelines. Check our /projects directory for IaC scripts!";
+      }
+    } else if (userQuery.includes('kubernetes') || userQuery.includes('docker') || userQuery.includes('terraform')) {
+      const devopsProjs = projectsList.filter(p => p.techStack.some(t => t.toLowerCase().includes('kubernetes') || t.toLowerCase().includes('docker') || t.toLowerCase().includes('terraform')));
+      if (devopsProjs.length > 0) {
+        reply = `For containerization & DevOps, I recommend: ${devopsProjs.map(p => `\n- **${p.title}** (INR ${p.price})`).join('')}. They include complete docker-compose and Terraform scripts!`;
+      }
+    } else if (userQuery.includes('coupon') || userQuery.includes('discount')) {
+      reply = "Yes! You can see active offers in the banner at the top of the page. You can also solve our daily 'Spot the Bug' challenge on the homepage to earn a 10% coupon instantly!";
+    } else {
+      reply = `I am ApexAdvisor! We offer premium production-ready codes like ${projectsList.slice(0, 3).map(p => `**${p.title}**`).join(', ')} and more. What tech stack (React, Node, AWS, Python) are you looking to build with?`;
+    }
+
+    res.json({ success: true, reply });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -197,3 +197,51 @@ export const getLatestActiveCoupon = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Generate a dynamic 10% coupon reward for daily bug game (Public)
+ * @route   POST /api/coupons/generate-bug-reward
+ * @access  Public
+ */
+export const generateBugReward = async (req, res) => {
+  try {
+    const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const code = `BUGBUSTER-${randomSuffix}`;
+
+    const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours expiry
+    expiry.setHours(23, 59, 59, 999);
+
+    if (!isDbConnected()) {
+      const coupon = {
+        _id: `coupon_mock_bug_${Date.now()}`,
+        code,
+        discountType: 'percentage',
+        discountValue: 10,
+        minOrderAmount: 0,
+        maxDiscount: null,
+        expiryDate: expiry,
+        usageLimit: 1,
+        usedCount: 0,
+        isActive: true,
+        createdAt: new Date()
+      };
+
+      mockDb.coupons.push(coupon);
+      return res.status(201).json({ success: true, code, message: 'Reward coupon generated! Valid for 24 hours.' });
+    }
+
+    const coupon = await Coupon.create({
+      code,
+      discountType: 'percentage',
+      discountValue: 10,
+      minOrderAmount: 0,
+      maxDiscount: null,
+      expiryDate: expiry,
+      usageLimit: 1,
+    });
+
+    res.status(201).json({ success: true, code: coupon.code, message: 'Reward coupon generated! Valid for 24 hours.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

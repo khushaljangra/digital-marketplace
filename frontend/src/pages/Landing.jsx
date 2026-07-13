@@ -15,7 +15,46 @@ import {
   Users,
   Star,
   BookOpen,
+  Bug,
+  Terminal,
+  AlertCircle,
 } from 'lucide-react';
+
+const BUG_PUZZLES = [
+  {
+    id: 1,
+    title: "The Reference Trap",
+    code: `const original = { user: 'Admin' };
+const copy = original;
+copy.user = 'Developer';
+
+console.log(original.user); // Output?`,
+    options: ["'Admin'", "'Developer'", "undefined", "ReferenceError"],
+    correct: 1,
+    explanation: "Objects are copied by reference in JavaScript. Modifying 'copy.user' directly changes the underlying object, altering 'original.user' too."
+  },
+  {
+    id: 2,
+    title: "Closure & Scopes",
+    code: `for (var i = 0; i < 3; i++) {
+  setTimeout(() => console.log(i), 100);
+}`,
+    options: ["0, 1, 2", "3, 3, 3", "undefined, undefined, undefined", "TypeError"],
+    correct: 1,
+    explanation: "Because 'var' is function-scoped (not block-scoped) and gets hoisted, the setTimeout callback executes after the loop has finished, printing '3' three times."
+  },
+  {
+    id: 3,
+    title: "Array Equivalence",
+    code: `const a = [1, 2];
+const b = [1, 2];
+
+console.log(a == b || a === b); // Output?`,
+    options: ["true", "false", "TypeError", "undefined"],
+    correct: 1,
+    explanation: "In JavaScript, arrays are objects. Comparing two distinct array objects always returns false, even if they have the exact same elements, because they reference different memory slots."
+  }
+];
 
 const Landing = () => {
   const [projects, setProjects] = useState([]);
@@ -23,6 +62,13 @@ const Landing = () => {
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState('cloud');
   const navigate = useNavigate();
+
+  // "Spot the Bug" Mini-Game States
+  const [selectedPuzzle, setSelectedPuzzle] = useState(null);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [gameFeedback, setGameFeedback] = useState(null); // 'success' | 'fail' | null
+  const [rewardCoupon, setRewardCoupon] = useState('');
+  const [gamePlayed, setGamePlayed] = useState(false);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -32,13 +78,51 @@ const Landing = () => {
           setProjects(data.projects);
         }
       } catch (error) {
-        console.error('Error fetching landing projects:', error.message);
+        console.error('Error fetching popular projects:', error.message);
       } finally {
         setLoading(false);
       }
     };
     fetchProjects();
+
+    // Init Daily Bug Challenge
+    const day = new Date().getDay();
+    const puzzleIndex = day % BUG_PUZZLES.length;
+    setSelectedPuzzle(BUG_PUZZLES[puzzleIndex]);
+
+    // Check if played today
+    const lastPlayed = localStorage.getItem('bug_played_date');
+    if (lastPlayed === new Date().toDateString()) {
+      setGamePlayed(true);
+      const savedCoupon = localStorage.getItem('bug_reward_coupon');
+      if (savedCoupon) setRewardCoupon(savedCoupon);
+    }
   }, []);
+
+  const handleOptionSelect = (index) => {
+    if (gamePlayed || gameFeedback) return;
+    setSelectedOption(index);
+  };
+
+  const handleVerifyAnswer = async () => {
+    if (selectedOption === null || gameFeedback) return;
+
+    if (selectedOption === selectedPuzzle.correct) {
+      setGameFeedback('success');
+      try {
+        const data = await request('/coupons/generate-bug-reward', 'POST');
+        if (data.success) {
+          setRewardCoupon(data.code);
+          localStorage.setItem('bug_played_date', new Date().toDateString());
+          localStorage.setItem('bug_reward_coupon', data.code);
+        }
+      } catch (err) {
+        console.error('Error generating bug reward coupon:', err.message);
+      }
+    } else {
+      setGameFeedback('fail');
+    }
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -193,6 +277,175 @@ const Landing = () => {
             ))}
           </div>
         )}
+      </section>
+
+      <div style={{ margin: '40px 0' }} />
+
+      {/* Spot the Bug Mini-Game Section */}
+      <section className="container" style={{ marginBottom: '40px' }}>
+        <div className="glass-card" style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border)',
+          borderRadius: '24px',
+          padding: '40px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '32px',
+          alignItems: 'flex-start'
+        }}>
+          {/* Left panel: Info & Code */}
+          <div>
+            <span className="badge badge-accent" style={{ marginBottom: '16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Bug size={12} /> Daily Code Challenge
+            </span>
+            <h2 style={{ fontSize: '28px', color: 'var(--text-primary)', marginBottom: '12px' }}>
+              Spot The Bug 🐛
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.6, marginBottom: '24px' }}>
+              Solve today's coding puzzle to prove your developer skills and earn a **10% discount coupon** valid for 24 hours!
+            </p>
+
+            {selectedPuzzle && (
+              <div style={{
+                background: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: '12px',
+                padding: '16px',
+                fontFamily: 'monospace',
+                fontSize: '13px',
+                color: '#e2e8f0',
+                whiteSpace: 'pre-wrap',
+                overflowX: 'auto',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.6)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '11px', borderBottom: '1px solid #1e293b', paddingBottom: '8px', marginBottom: '12px' }}>
+                  <Terminal size={14} /> {selectedPuzzle.title}.js
+                </div>
+                {selectedPuzzle.code}
+              </div>
+            )}
+          </div>
+
+          {/* Right panel: Options & Results */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', justifyContent: 'center' }}>
+            {gamePlayed ? (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                padding: '30px',
+                borderRadius: '16px',
+                textAlign: 'center',
+                boxShadow: 'var(--shadow-lg)'
+              }}>
+                <CheckCircle2 size={48} style={{ color: 'var(--success)', marginBottom: '14px' }} />
+                <h3 style={{ fontSize: '18px', color: 'var(--text-primary)', marginBottom: '10px' }}>Bug Solved Successfully!</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
+                  You have already completed today's challenge. Come back tomorrow for a new puzzle!
+                </p>
+                {rewardCoupon && (
+                  <div style={{
+                    background: 'var(--bg-primary)',
+                    border: '1.5px dashed var(--success)',
+                    padding: '12px 18px',
+                    borderRadius: '8px',
+                    fontSize: '18px',
+                    fontWeight: 800,
+                    color: 'var(--primary)',
+                    display: 'inline-block',
+                    letterSpacing: '1px'
+                  }}>
+                    {rewardCoupon}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {selectedPuzzle?.options.map((opt, idx) => (
+                    <button
+                      key={idx}
+                      disabled={gameFeedback !== null}
+                      onClick={() => handleOptionSelect(idx)}
+                      style={{
+                        textAlign: 'left',
+                        padding: '14px 18px',
+                        borderRadius: '8px',
+                        border: selectedOption === idx 
+                          ? '1px solid var(--primary)' 
+                          : '1px solid var(--border)',
+                        background: selectedOption === idx 
+                          ? 'rgba(99, 102, 241, 0.1)' 
+                          : 'var(--bg-primary)',
+                        color: selectedOption === idx 
+                          ? 'var(--primary)' 
+                          : 'var(--text-primary)',
+                        fontSize: '13px',
+                        cursor: gameFeedback ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s',
+                        fontWeight: selectedOption === idx ? 600 : 400
+                      }}
+                    >
+                      {idx + 1}. {opt}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <button
+                    disabled={selectedOption === null || gameFeedback !== null}
+                    onClick={handleVerifyAnswer}
+                    className="btn btn-primary"
+                    style={{ flexGrow: 1, padding: '14px' }}
+                  >
+                    Verify Solution
+                  </button>
+                  {gameFeedback && (
+                    <button
+                      onClick={() => {
+                        setSelectedOption(null);
+                        setGameFeedback(null);
+                      }}
+                      className="btn btn-secondary"
+                      style={{ padding: '14px' }}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+
+                {gameFeedback === 'success' && (
+                  <div style={{
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid var(--success)',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                    lineHeight: '1.5'
+                  }}>
+                    <strong style={{ color: 'var(--success)', display: 'block', marginBottom: '4px' }}>✓ CORRECT ANSWER!</strong>
+                    {selectedPuzzle.explanation}
+                  </div>
+                )}
+
+                {gameFeedback === 'fail' && (
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid var(--error)',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                    lineHeight: '1.5'
+                  }}>
+                    <strong style={{ color: 'var(--error)', display: 'block', marginBottom: '4px' }}>❌ INCORRECT OPTION!</strong>
+                    That answer is wrong. Check the code logic, variables scope, or types comparison and try again!
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </section>
 
       <div style={{ margin: '40px 0' }} />

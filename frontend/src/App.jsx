@@ -12,6 +12,7 @@ import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import PromoBanner from './components/PromoBanner';
+import AIChatbot from './components/AIChatbot';
 
 // Page Views
 import Landing from './pages/Landing';
@@ -97,6 +98,7 @@ function App() {
 
               {/* Footer Panel */}
               <Footer />
+              <AIChatbot />
 
             </div>
           </Router>
