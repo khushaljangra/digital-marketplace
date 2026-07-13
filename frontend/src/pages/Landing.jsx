@@ -200,6 +200,41 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Featured Projects Section */}
+      <section className="container" style={{ padding: '60px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h2 style={{ fontSize: '28px', color: 'var(--text-primary)', marginBottom: '8px' }}>
+              Popular Projects
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
+              Study, download, and build with production-ready cloud and full-stack templates.
+            </p>
+          </div>
+          <Link to="/projects" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '14px', borderRadius: '6px' }}>
+            View All <ArrowRight size={16} />
+          </Link>
+        </div>
+
+        {loading ? (
+          <Loader />
+        ) : projects.length === 0 ? (
+          <div className="glass-card" style={{ textAlign: 'center', padding: '60px 24px' }}>
+            <p style={{ color: 'var(--text-secondary)' }}>No projects found.</p>
+          </div>
+        ) : (
+          <div className="grid-cols-4" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gap: '24px'
+          }}>
+            {projects.slice(0, 4).map((proj) => (
+              <ProjectCard key={proj._id} project={proj} />
+            ))}
+          </div>
+        )}
+      </section>
+
       <div style={{ margin: '40px 0' }} />
 
       {/* Referral Program Banner */}
