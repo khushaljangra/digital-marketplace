@@ -188,7 +188,7 @@ const Landing = () => {
             gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
             gap: '24px'
           }}>
-            {projects.slice(0, 4).map((proj) => (
+            {projects.filter(p => p.category === 'source-code').slice(0, 4).map((proj) => (
               <ProjectCard key={proj._id} project={proj} />
             ))}
           </div>
