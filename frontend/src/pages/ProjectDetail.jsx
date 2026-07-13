@@ -256,7 +256,7 @@ const ProjectDetail = () => {
             <img
               src={previewImage}
               alt={project.title}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           </div>
 
@@ -277,7 +277,7 @@ const ProjectDetail = () => {
                     padding: 0
                   }}
                 >
-                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
               ))}
             </div>
