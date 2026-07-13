@@ -128,6 +128,7 @@ export const createCoupon = async (req, res) => {
       discountValue,
       minOrderAmount,
       maxDiscount,
+      expiryDate: formattedExpiryDate,
       usageLimit,
     });
 
