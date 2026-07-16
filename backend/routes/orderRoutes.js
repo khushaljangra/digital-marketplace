@@ -9,6 +9,7 @@ import {
   verifyUtrOrder,
   rejectUtrOrder,
   deleteOrder,
+  telegramWebhook,
 } from '../controllers/orderController.js';
 import { protect, admin } from '../middleware/auth.js';
 
@@ -17,6 +18,7 @@ const router = express.Router();
 router.post('/checkout', protect, checkout);
 router.post('/verify', protect, verifyPayment);
 router.post('/qr-checkout', createQrOrder);
+router.post('/telegram-webhook', telegramWebhook);
 router.post('/verify-utr/:id', protect, admin, verifyUtrOrder);
 router.post('/reject-utr/:id', protect, admin, rejectUtrOrder);
 router.get('/my-purchases', protect, getMyPurchasedProjects);

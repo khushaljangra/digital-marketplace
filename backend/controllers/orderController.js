@@ -8,6 +8,7 @@ import { createRazorpayOrder, verifyRazorpaySignature } from '../config/razorpay
 import { generateSignedDownloadUrl } from '../config/storage.js';
 import { sendPurchaseEmail } from '../config/mail.js';
 import { isDbConnected, mockDb } from '../config/mockDb.js';
+import { sendTelegramMessage, answerCallbackQuery, editTelegramMessage } from '../config/telegram.js';
 
 /**
  * @desc    Initialize a checkout order and create Razorpay order ID
@@ -463,6 +464,25 @@ export const createQrOrder = async (req, res) => {
 
       mockDb.orders.push(order);
 
+      // Send Telegram notification
+      const tgMessageText = `🔔 <b>New Order Received (Sandbox/Mock)</b>\n\n` +
+        `📦 <b>Order ID:</b> <code>${order._id}</code>\n` +
+        `📧 <b>Email:</b> ${contactEmail}\n` +
+        `📞 <b>Phone:</b> ${contactPhone}\n` +
+        `💵 <b>Amount:</b> INR ${totalAmount}\n` +
+        `🔑 <b>UTR/Ref:</b> <code>${transactionRef}</code>\n\n` +
+        `Please verify the payment in your bank account before approving.`;
+      
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: '✅ Approve', callback_data: `approve_${order._id}` },
+            { text: '❌ Reject', callback_data: `reject_${order._id}` }
+          ]
+        ]
+      };
+      sendTelegramMessage(tgMessageText, replyMarkup).catch(err => console.error('Telegram notification failed:', err.message));
+
       const token = jwt.sign({ id: targetUser._id }, process.env.JWT_SECRET || 'supersecretkey_9918237', { expiresIn: '30d' });
 
       return res.status(201).json({
@@ -548,6 +568,25 @@ export const createQrOrder = async (req, res) => {
       contactEmail,
       contactPhone
     });
+
+    // Send Telegram notification
+    const tgMessageText = `🔔 <b>New Order Received (Live UPI)</b>\n\n` +
+      `📦 <b>Order ID:</b> <code>${order._id}</code>\n` +
+      `📧 <b>Email:</b> ${contactEmail}\n` +
+      `📞 <b>Phone:</b> ${contactPhone}\n` +
+      `💵 <b>Amount:</b> INR ${totalAmount}\n` +
+      `🔑 <b>UTR/Ref:</b> <code>${transactionRef}</code>\n\n` +
+      `Please verify the payment in your bank account before approving.`;
+    
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: '✅ Approve', callback_data: `approve_${order._id}` },
+          { text: '❌ Reject', callback_data: `reject_${order._id}` }
+        ]
+      ]
+    };
+    sendTelegramMessage(tgMessageText, replyMarkup).catch(err => console.error('Telegram notification failed:', err.message));
 
     const token = jwt.sign({ id: targetUser._id }, process.env.JWT_SECRET || 'supersecretkey_9918237', { expiresIn: '30d' });
 
@@ -678,5 +717,120 @@ export const deleteOrder = async (req, res) => {
     res.json({ success: true, message: 'Order transaction deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Handle Telegram Bot inline keyboard interaction (Approve/Reject order)
+ * @route   POST /api/orders/telegram-webhook
+ * @access  Public (called by Telegram API)
+ */
+export const telegramWebhook = async (req, res) => {
+  try {
+    const { callback_query } = req.body;
+
+    if (callback_query) {
+      const callbackQueryId = callback_query.id;
+      const data = callback_query.data;
+      const tgMsg = callback_query.message;
+      const messageId = tgMsg.message_id;
+      const originalText = tgMsg.text;
+
+      let action, orderId;
+      if (data.startsWith('approve_')) {
+        action = 'approve';
+        orderId = data.replace('approve_', '');
+      } else if (data.startsWith('reject_')) {
+        action = 'reject';
+        orderId = data.replace('reject_', '');
+      }
+
+      if (!orderId) {
+        await answerCallbackQuery(callbackQueryId, 'Invalid Order ID');
+        return res.sendStatus(200);
+      }
+
+      const hostUrl = `${req.protocol}://${req.get('host')}`;
+
+      if (action === 'approve') {
+        if (!isDbConnected()) {
+          const order = mockDb.orders.find(o => o._id === orderId);
+          if (!order) {
+            await answerCallbackQuery(callbackQueryId, 'Order not found');
+            return res.sendStatus(200);
+          }
+          if (order.paymentStatus === 'paid') {
+            await answerCallbackQuery(callbackQueryId, 'Order already approved');
+            return res.sendStatus(200);
+          }
+
+          order.paymentStatus = 'paid';
+          const user = mockDb.users.find(u => u._id === order.user);
+          const downloadLinks = order.items.map(item => ({
+            title: item.titleAtPurchase,
+            downloadUrl: `${hostUrl}/api/projects/download-secure?token=mock_download_token_${item.project}`
+          }));
+          await sendPurchaseEmail(user ? user.email : 'user@marketplace.com', user ? user.name : 'Customer', order, downloadLinks);
+        } else {
+          const order = await Order.findById(orderId).populate('items.project').populate('user');
+          if (!order) {
+            await answerCallbackQuery(callbackQueryId, 'Order not found');
+            return res.sendStatus(200);
+          }
+          if (order.paymentStatus === 'paid') {
+            await answerCallbackQuery(callbackQueryId, 'Order already approved');
+            return res.sendStatus(200);
+          }
+
+          order.paymentStatus = 'paid';
+          await order.save();
+
+          const downloadLinks = [];
+          for (const item of order.items) {
+            const downloadUrl = generateSignedDownloadUrl(
+              item.project.fileKey,
+              item.project.fileName,
+              order.user._id.toString(),
+              item.project._id.toString(),
+              order._id.toString(),
+              hostUrl
+            );
+            downloadLinks.push({
+              title: item.project.title,
+              downloadUrl,
+            });
+          }
+          await sendPurchaseEmail(order.user.email, order.user.name, order, downloadLinks);
+        }
+
+        await editTelegramMessage(messageId, `${originalText}\n\n✅ <b>APPROVED by Admin via Telegram</b>`);
+        await answerCallbackQuery(callbackQueryId, 'Order approved successfully!');
+      } else if (action === 'reject') {
+        if (!isDbConnected()) {
+          const order = mockDb.orders.find(o => o._id === orderId);
+          if (!order) {
+            await answerCallbackQuery(callbackQueryId, 'Order not found');
+            return res.sendStatus(200);
+          }
+          order.paymentStatus = 'failed';
+        } else {
+          const order = await Order.findById(orderId);
+          if (!order) {
+            await answerCallbackQuery(callbackQueryId, 'Order not found');
+            return res.sendStatus(200);
+          }
+          order.paymentStatus = 'failed';
+          await order.save();
+        }
+
+        await editTelegramMessage(messageId, `${originalText}\n\n❌ <b>REJECTED by Admin via Telegram</b>`);
+        await answerCallbackQuery(callbackQueryId, 'Order rejected.');
+      }
+    }
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Error handling Telegram Webhook:', error.message);
+    res.sendStatus(500);
   }
 };
