@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Copy, Check, Sparkles, Code2, Play } from 'lucide-react';
 import UI_COMPONENTS from '../utils/uiComponents.json';
 
@@ -8,6 +8,17 @@ const UiGallery = () => {
   const [activeTab, setActiveTab] = useState({}); // Stores state { [compId]: 'preview' | 'html' | 'css' }
   const [copiedId, setCopiedId] = useState(null); // Stores copied component ID for checkout toast
   const [visibleCount, setVisibleCount] = useState(12);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect screen size for mobile optimization & disable tilt on touch devices
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const categories = [
     'All',
@@ -71,8 +82,9 @@ const UiGallery = () => {
     setActiveTab(prev => ({ ...prev, [compId]: tab }));
   };
 
-  // 3D Tilt mouse move tracker
+  // 3D Tilt mouse move tracker (Disabled on mobile)
   const handleMouseMove = (e) => {
+    if (isMobile) return;
     const card = e.currentTarget;
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -81,14 +93,12 @@ const UiGallery = () => {
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
     
-    // Calculate rotation angles (max 8 degrees for smooth tilt)
     const rotateX = ((centerY - y) / centerY) * 8;
     const rotateY = ((x - centerX) / centerX) * 8;
     
     card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
     card.style.boxShadow = `0 12px 24px rgba(0, 0, 0, 0.3), 0 0 15px rgba(99, 102, 241, 0.15)`;
     
-    // Update border neon glow position
     const glow = card.querySelector('.3d-glow');
     if (glow) {
       glow.style.opacity = '1';
@@ -98,6 +108,7 @@ const UiGallery = () => {
 
   // Reset 3D Tilt on mouse leave
   const handleMouseLeave = (e) => {
+    if (isMobile) return;
     const card = e.currentTarget;
     card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
     card.style.boxShadow = 'none';
@@ -110,17 +121,66 @@ const UiGallery = () => {
 
   return (
     <div style={{ padding: '40px 0', minHeight: '80vh' }} className="container animate-fade-in">
+      {/* Local Responsive CSS Injection */}
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+        }
+        .ui-gallery-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+          gap: 28px;
+        }
+        @media (max-width: 768px) {
+          .ui-gallery-grid {
+            grid-template-columns: 1fr !important;
+            gap: 18px !important;
+          }
+          .ui-gallery-header {
+            padding: 28px 16px !important;
+            margin-bottom: 30px !important;
+            border-radius: 14px !important;
+          }
+          .ui-gallery-header h1 {
+            font-size: 26px !important;
+          }
+          .ui-gallery-header p {
+            font-size: 13px !important;
+          }
+          .ui-gallery-filters {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 16px !important;
+            margin-bottom: 24px !important;
+          }
+          .ui-gallery-search {
+            width: 100% !important;
+          }
+          .ui-gallery-card {
+            height: 390px !important;
+          }
+        }
+      `}</style>
+
       {/* Header Banner */}
-      <div style={{
-        textAlign: 'center',
-        marginBottom: '45px',
-        padding: '40px 30px',
-        borderRadius: '20px',
-        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)',
-        border: '1px solid rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(12px)',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
-      }}>
+      <div 
+        className="ui-gallery-header"
+        style={{
+          textAlign: 'center',
+          marginBottom: '45px',
+          padding: '40px 30px',
+          borderRadius: '20px',
+          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+        }}
+      >
         <div style={{ 
           display: 'inline-flex', 
           alignItems: 'center', 
@@ -146,25 +206,30 @@ const UiGallery = () => {
       </div>
 
       {/* Filters & Search Header */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '16px',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '35px',
-        borderBottom: '1px solid var(--border)',
-        paddingBottom: '24px'
-      }}>
+      <div 
+        className="ui-gallery-filters"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '16px',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '35px',
+          borderBottom: '1px solid var(--border)',
+          paddingBottom: '24px'
+        }}
+      >
         {/* Category Tabs */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '8px', 
-          overflowX: 'auto', 
-          paddingBottom: '6px', 
-          maxWidth: '100%',
-          scrollbarWidth: 'none'
-        }} className="no-scrollbar">
+        <div 
+          style={{ 
+            display: 'flex', 
+            gap: '8px', 
+            overflowX: 'auto', 
+            paddingBottom: '6px', 
+            maxWidth: '100%'
+          }} 
+          className="no-scrollbar"
+        >
           {categories.map(cat => (
             <button
               key={cat}
@@ -193,7 +258,7 @@ const UiGallery = () => {
         </div>
 
         {/* Search Field */}
-        <div style={{ position: 'relative', width: '320px' }}>
+        <div className="ui-gallery-search" style={{ position: 'relative', width: '320px' }}>
           <input
             type="text"
             placeholder="Search custom layout elements..."
@@ -213,7 +278,6 @@ const UiGallery = () => {
               outline: 'none',
               transition: 'all 0.3s ease'
             }}
-            className="search-input-field"
           />
           <Search size={16} style={{ position: 'absolute', left: '16px', top: '14px', color: 'var(--text-secondary)' }} />
         </div>
@@ -222,17 +286,13 @@ const UiGallery = () => {
       {/* Grid of Components */}
       {displayedComponents.length > 0 ? (
         <div>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-            gap: '28px'
-          }}>
+          <div className="ui-gallery-grid">
             {displayedComponents.map(comp => {
               const currentTab = getActiveTab(comp.id);
               return (
                 <div 
                   key={comp.id} 
-                  className="card 3d-tilt-card" 
+                  className="ui-gallery-card" 
                   onMouseMove={handleMouseMove}
                   onMouseLeave={handleMouseLeave}
                   style={{
@@ -284,7 +344,14 @@ const UiGallery = () => {
                       background: 'rgba(255,255,255,0.01)'
                     }}>
                       <div>
-                        <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 700, maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={comp.name}>{comp.name}</h3>
+                        <h3 
+                          style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} 
+                          className="ui-gallery-card-title"
+                          style={{ maxWidth: isMobile ? '130px' : '180px' }}
+                          title={comp.name}
+                        >
+                          {comp.name}
+                        </h3>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           <span style={{
                             background: 'rgba(99, 102, 241, 0.08)',
@@ -303,7 +370,7 @@ const UiGallery = () => {
                         <button
                           onClick={() => setTab(comp.id, 'preview')}
                           style={{
-                            padding: '6px 12px',
+                            padding: isMobile ? '5px 8px' : '6px 12px',
                             fontSize: '11px',
                             fontWeight: 700,
                             border: 'none',
@@ -317,12 +384,12 @@ const UiGallery = () => {
                             transition: 'all 0.2s ease'
                           }}
                         >
-                          <Play size={11} /> Preview
+                          <Play size={11} /> {isMobile ? '' : 'Preview'}
                         </button>
                         <button
                           onClick={() => setTab(comp.id, 'html')}
                           style={{
-                            padding: '6px 12px',
+                            padding: isMobile ? '5px 8px' : '6px 12px',
                             fontSize: '11px',
                             fontWeight: 700,
                             border: 'none',
@@ -336,12 +403,12 @@ const UiGallery = () => {
                             transition: 'all 0.2s ease'
                           }}
                         >
-                          <Code2 size={11} /> HTML
+                          <Code2 size={11} /> {isMobile ? '' : 'HTML'}
                         </button>
                         <button
                           onClick={() => setTab(comp.id, 'css')}
                           style={{
-                            padding: '6px 12px',
+                            padding: isMobile ? '5px 8px' : '6px 12px',
                             fontSize: '11px',
                             fontWeight: 700,
                             border: 'none',
@@ -355,7 +422,7 @@ const UiGallery = () => {
                             transition: 'all 0.2s ease'
                           }}
                         >
-                          <Code2 size={11} /> CSS
+                          <Code2 size={11} /> {isMobile ? '' : 'CSS'}
                         </button>
                       </div>
                     </div>
@@ -412,7 +479,6 @@ const UiGallery = () => {
                               boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
                               transition: 'all 0.2s ease'
                             }}
-                            className="copy-btn-action"
                           >
                             {copiedId === `${comp.id}-html` ? (
                               <><Check size={12} style={{ color: '#10b981' }} /> Copied</>
@@ -458,7 +524,6 @@ const UiGallery = () => {
                               boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
                               transition: 'all 0.2s ease'
                             }}
-                            className="copy-btn-action"
                           >
                             {copiedId === `${comp.id}-css` ? (
                               <><Check size={12} style={{ color: '#10b981' }} /> Copied</>
@@ -493,7 +558,6 @@ const UiGallery = () => {
                   outline: 'none',
                   boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                 }}
-                className="load-more-btn"
               >
                 Load More Components ({filteredComponents.length - visibleCount} remaining)
               </button>
