@@ -126,7 +126,7 @@ export const getProjectById = async (req, res) => {
  */
 export const createProject = async (req, res) => {
   try {
-    const { title, description, price, category, techStack, previewUrls, externalDownloadUrl } = req.body;
+    const { title, description, price, category, techStack, previewUrls, externalDownloadUrl, upiId } = req.body;
 
     if (!req.file && !externalDownloadUrl) {
       return res.status(400).json({ success: false, message: 'Please upload a project file or provide a Google Drive / external download link.' });
@@ -166,6 +166,7 @@ export const createProject = async (req, res) => {
         fileName: fileData.fileName,
         fileSize: fileData.fileSize,
         externalDownloadUrl: externalDownloadUrl || '',
+        upiId: upiId || '',
         createdBy: req.user?._id || 'mock_admin_id',
         ratings: { average: 5, count: 1 },
         downloadCount: 0,
@@ -203,6 +204,7 @@ export const createProject = async (req, res) => {
       fileName: fileData.fileName,
       fileSize: fileData.fileSize,
       externalDownloadUrl: externalDownloadUrl || '',
+      upiId: upiId || '',
       createdBy: creatorId,
       versions: [
         {
@@ -239,7 +241,7 @@ export const createProject = async (req, res) => {
  */
 export const updateProject = async (req, res) => {
   try {
-    const { title, description, price, category, techStack, previewUrls, externalDownloadUrl } = req.body;
+    const { title, description, price, category, techStack, previewUrls, externalDownloadUrl, upiId } = req.body;
 
     if (!isDbConnected()) {
       const project = mockDb.projects.find(p => p._id === req.params.id);
@@ -252,6 +254,7 @@ export const updateProject = async (req, res) => {
       project.price = price !== undefined ? Number(price) : project.price;
       project.category = category || project.category;
       project.externalDownloadUrl = externalDownloadUrl !== undefined ? externalDownloadUrl : (project.externalDownloadUrl || '');
+      project.upiId = upiId !== undefined ? upiId : (project.upiId || '');
 
       if (techStack) {
         project.techStack = typeof techStack === 'string'
@@ -286,6 +289,7 @@ export const updateProject = async (req, res) => {
     project.price = price !== undefined ? Number(price) : project.price;
     project.category = category || project.category;
     project.externalDownloadUrl = externalDownloadUrl !== undefined ? externalDownloadUrl : (project.externalDownloadUrl || '');
+    project.upiId = upiId !== undefined ? upiId : (project.upiId || '');
 
     if (techStack) {
       project.techStack = typeof techStack === 'string'

@@ -22,6 +22,10 @@ const Cart = () => {
     removeCoupon,
   } = useCart();
 
+  const activeUpiId = cartItems.length > 0 && cartItems[0].upiId
+    ? cartItems[0].upiId
+    : MERCHANT_UPI_ID;
+
   const [couponCode, setCouponCode] = useState('');
   const [couponMsg, setCouponMsg] = useState('');
   const [couponError, setCouponError] = useState('');
@@ -409,7 +413,7 @@ const Cart = () => {
             }}>
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-                  `upi://pay?pa=${MERCHANT_UPI_ID}&pn=Khushal%20Jangra&am=${total}&cu=INR&tn=ApexMarket_Order`
+                  `upi://pay?pa=${activeUpiId}&pn=Khushal%20Jangra&am=${total}&cu=INR&tn=ApexMarket_Order`
                 )}`}
                 alt="UPI QR Code"
                 style={{ display: 'block', width: '180px', height: '180px' }}
@@ -420,14 +424,14 @@ const Cart = () => {
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block' }}>Amount to Transfer</span>
               <strong style={{ fontSize: '26px', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>INR {total}</strong>
               <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
-                UPI ID: <code style={{ color: 'var(--primary)' }}>{MERCHANT_UPI_ID}</code>
+                UPI ID: <code style={{ color: 'var(--primary)' }}>{activeUpiId}</code>
               </span>
             </div>
 
             {/* Mobile Deep Link Button (triggers native UPI apps like PhonePe on phones) */}
             <div style={{ marginBottom: '24px' }}>
               <a
-                href={`upi://pay?pa=${MERCHANT_UPI_ID}&pn=Khushal%20Jangra&am=${total}&cu=INR&tn=ApexMarket_Order`}
+                href={`upi://pay?pa=${activeUpiId}&pn=Khushal%20Jangra&am=${total}&cu=INR&tn=ApexMarket_Order`}
                 className="btn"
                 style={{
                   display: 'inline-flex',

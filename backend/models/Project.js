@@ -72,6 +72,10 @@ const projectSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    upiId: {
+      type: String,
+      default: '',
+    },
     versions: [versionSchema],
     ratings: {
       average: {

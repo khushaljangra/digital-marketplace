@@ -43,6 +43,7 @@ const AdminDashboard = () => {
   const [previewUrls, setPreviewUrls] = useState('');
   const [file, setFile] = useState(null);
   const [externalDownloadUrl, setExternalDownloadUrl] = useState('');
+  const [upiId, setUpiId] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
@@ -268,6 +269,7 @@ const AdminDashboard = () => {
     setTechStack(proj.techStack ? proj.techStack.join(', ') : '');
     setPreviewUrls(proj.previewUrls ? proj.previewUrls.join('\n') : '');
     setExternalDownloadUrl(proj.externalDownloadUrl || '');
+    setUpiId(proj.upiId || '');
     setFile(null);
   };
 
@@ -280,6 +282,7 @@ const AdminDashboard = () => {
     setTechStack('');
     setPreviewUrls('');
     setExternalDownloadUrl('');
+    setUpiId('');
     setFile(null);
   };
 
@@ -312,6 +315,7 @@ const AdminDashboard = () => {
       formData.append('category', category);
       formData.append('techStack', techStack);
       formData.append('externalDownloadUrl', externalDownloadUrl);
+      formData.append('upiId', upiId);
       if (file) {
         formData.append('file', file);
       }
@@ -792,6 +796,17 @@ const AdminDashboard = () => {
                   placeholder="https://image-url.com/preview.png"
                   value={previewUrls}
                   onChange={(e) => setPreviewUrls(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Payee UPI ID (Optional - defaults to global merchant UPI)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g., username@paytm or 1234567890@apl"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
                 />
               </div>
 
