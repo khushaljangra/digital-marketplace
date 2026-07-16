@@ -217,7 +217,7 @@ export const verifyPayment = async (req, res) => {
     const hostUrl = `${req.protocol}://${req.get('host')}`;
     const downloadLinks = [];
     for (const item of order.items) {
-      const downloadUrl = generateSignedDownloadUrl(
+      const downloadUrl = await generateSignedDownloadUrl(
         item.project.fileKey,
         item.project.fileName,
         order.user.toString(),
@@ -644,7 +644,7 @@ export const verifyUtrOrder = async (req, res) => {
     // Send confirmation email with download links
     const downloadLinks = [];
     for (const item of order.items) {
-      const downloadUrl = generateSignedDownloadUrl(
+      const downloadUrl = await generateSignedDownloadUrl(
         item.project.fileKey,
         item.project.fileName,
         order.user._id.toString(),
@@ -787,7 +787,7 @@ export const telegramWebhook = async (req, res) => {
 
           const downloadLinks = [];
           for (const item of order.items) {
-            const downloadUrl = generateSignedDownloadUrl(
+            const downloadUrl = await generateSignedDownloadUrl(
               item.project.fileKey,
               item.project.fileName,
               order.user._id.toString(),

@@ -1,6 +1,10 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { isDbConnected, mockDb } from '../config/mockDb.js';
+import { sendOtpEmail } from '../config/mail.js';
+
+// Simple in-memory cache for OTPs: email -> { otp, expiresAt }
+const otpCache = new Map();
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -328,6 +332,197 @@ export const toggleWishlist = async (req, res) => {
 
     await user.save();
     res.json({ success: true, wishlist: user.wishlist, isAdded });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Send OTP to user email
+ * @route   POST /api/auth/send-otp
+ * @access  Public
+ */
+export const sendOtp = async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ success: false, message: 'Please provide a valid email address' });
+  }
+
+  try {
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store in cache with 10-minute expiry
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    otpCache.set(email.toLowerCase(), { otp, expiresAt });
+
+    // Send the email
+    const mailSent = await sendOtpEmail(email.toLowerCase(), otp);
+    
+    if (mailSent) {
+      res.json({ success: true, message: 'OTP sent successfully to your email.' });
+    } else {
+      res.status(500).json({ success: false, message: 'Failed to send OTP. Please check SMTP settings.' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Verify OTP and login/signup
+ * @route   POST /api/auth/verify-otp
+ * @access  Public
+ */
+export const verifyOtp = async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    return res.status(400).json({ success: false, message: 'Please provide both email and OTP' });
+  }
+
+  try {
+    const cachedData = otpCache.get(email.toLowerCase());
+    if (!cachedData) {
+      return res.status(400).json({ success: false, message: 'OTP expired or not found. Please request a new one.' });
+    }
+
+    if (Date.now() > cachedData.expiresAt) {
+      otpCache.delete(email.toLowerCase());
+      return res.status(400).json({ success: false, message: 'OTP expired. Please request a new one.' });
+    }
+
+    if (cachedData.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP code' });
+    }
+
+    // OTP matches! Clear from cache
+    otpCache.delete(email.toLowerCase());
+
+    // Find or create user
+    if (!isDbConnected()) {
+      let user = mockDb.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (!user) {
+        user = {
+          _id: `user_mock_${Date.now()}`,
+          name: email.split('@')[0],
+          email: email.toLowerCase(),
+          role: 'user',
+          referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+          referralEarnings: 0,
+          wishlist: [],
+          createdAt: new Date()
+        };
+        mockDb.users.push(user);
+      }
+      return res.json({
+        success: true,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        referralCode: user.referralCode,
+        token: generateToken(user._id)
+      });
+    }
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      // Create guest user since OTP verified
+      user = await User.create({
+        name: email.split('@')[0],
+        email: email.toLowerCase(),
+        password: 'otp_user_' + Math.random().toString(36).substring(2, 10), // random dummy password
+      });
+    }
+
+    res.json({
+      success: true,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      referralCode: user.referralCode,
+      token: generateToken(user._id)
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Authenticate with Google OAuth token
+ * @route   POST /api/auth/google-login
+ * @access  Public
+ */
+export const googleLogin = async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) {
+    return res.status(400).json({ success: false, message: 'Google credential token is missing.' });
+  }
+
+  try {
+    // Call Google Tokeninfo API to verify the ID token securely
+    const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`;
+    const response = await fetch(verifyUrl);
+    const data = await response.json();
+
+    if (data.error_description || data.error) {
+      return res.status(400).json({ success: false, message: 'Google authentication failed: ' + (data.error_description || data.error) });
+    }
+
+    // Google Token verified! Extract profile info
+    const email = data.email;
+    const name = data.name || email.split('@')[0];
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Could not retrieve email from Google Account.' });
+    }
+
+    if (!isDbConnected()) {
+      let user = mockDb.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (!user) {
+        user = {
+          _id: `user_mock_${Date.now()}`,
+          name: name,
+          email: email.toLowerCase(),
+          role: 'user',
+          referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+          referralEarnings: 0,
+          wishlist: [],
+          createdAt: new Date()
+        };
+        mockDb.users.push(user);
+      }
+      return res.json({
+        success: true,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        referralCode: user.referralCode,
+        token: generateToken(user._id)
+      });
+    }
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      // Create user
+      user = await User.create({
+        name,
+        email: email.toLowerCase(),
+        password: 'google_user_' + Math.random().toString(36).substring(2, 10), // random dummy password
+      });
+    }
+
+    res.json({
+      success: true,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      referralCode: user.referralCode,
+      token: generateToken(user._id)
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

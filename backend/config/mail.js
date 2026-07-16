@@ -205,3 +205,46 @@ export const sendNewCouponEmail = async (subscribersList, coupon) => {
     console.log('-----------------------------------------\n');
   }
 };
+
+/**
+ * Send One-Time Password (OTP) email for login
+ * @param {string} toEmail - Recipient email address
+ * @param {string} otp - 6-digit OTP code
+ */
+export const sendOtpEmail = async (toEmail, otp) => {
+  const htmlContent = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; color: #334155; line-height: 1.6; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px;">
+      <h2 style="color: #2563eb; margin-top: 0;">Login Verification Code</h2>
+      <p>Hello,</p>
+      <p>Use the following One-Time Password (OTP) to log in to your account. This code is valid for 10 minutes and should not be shared with anyone.</p>
+      
+      <div style="margin: 24px 0; text-align: center;">
+        <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #1e293b; background: #f1f5f9; padding: 12px 24px; border-radius: 6px; border: 1px dashed #cbd5e1;">${otp}</span>
+      </div>
+      
+      <p style="font-size: 12px; color: #64748b; margin-bottom: 0;">If you did not request this login code, you can safely ignore this email.</p>
+    </div>
+  `;
+
+  if (!transporter) {
+    console.log(`\n--- OTP LOGIN EMAIL (MOCK SIMULATOR) ---`);
+    console.log(`To: ${toEmail}`);
+    console.log(`Subject: Your Login OTP: ${otp}`);
+    console.log(`OTP Code: ${otp}`);
+    console.log(`-----------------------------------------\n`);
+    return true;
+  }
+
+  try {
+    await transporter.sendMail({
+      from: smtpFrom,
+      to: toEmail,
+      subject: `Your Login OTP: ${otp}`,
+      html: htmlContent,
+    });
+    return true;
+  } catch (error) {
+    console.error('Error sending OTP email:', error.message);
+    return false;
+  }
+};

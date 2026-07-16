@@ -476,7 +476,7 @@ export const getDownloadLink = async (req, res) => {
     }
 
     // Generate signed link
-    const downloadUrl = generateSignedDownloadUrl(
+    const downloadUrl = await generateSignedDownloadUrl(
       fileKey,
       fileName,
       userId.toString(),
