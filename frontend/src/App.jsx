@@ -27,7 +27,7 @@ const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Wishlist = lazy(() => import('./pages/Wishlist'));
 const SupportChat = lazy(() => import('./pages/SupportChat'));
-const UiGallery = lazy(() => import('./pages/UiGallery'));
+
 
 // Lightweight page loading indicator
 const PageLoader = () => (
@@ -87,7 +87,7 @@ function App() {
                     <Route path="/projects" element={<ProjectListing />} />
                     <Route path="/projects/:id" element={<ProjectDetail />} />
                     <Route path="/cart" element={<Cart />} />
-                    <Route path="/ui-gallery" element={<UiGallery />} />
+
 
                     {/* Authenticated user routes */}
                     <Route

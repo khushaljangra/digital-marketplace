@@ -91,14 +91,6 @@ const Navbar = () => {
             Browse Projects
           </Link>
 
-          <Link to="/ui-gallery" style={{
-            color: 'var(--text-secondary)',
-            textDecoration: 'none',
-            fontSize: '15px',
-            fontWeight: 500
-          }}>
-            UI Gallery
-          </Link>
           
           {user && (
             <Link to="/support" style={{
@@ -323,16 +315,6 @@ const Navbar = () => {
           Browse Projects
         </Link>
 
-        <Link to="/ui-gallery" onClick={closeMobileMenu} style={{
-          color: 'var(--text-primary)',
-          textDecoration: 'none',
-          fontSize: '15px',
-          fontWeight: 600,
-          borderBottom: '1px solid var(--border)',
-          paddingBottom: '10px'
-        }}>
-          UI Gallery
-        </Link>
         
         {user && (
           <Link to="/support" onClick={closeMobileMenu} style={{
