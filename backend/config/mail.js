@@ -9,7 +9,8 @@ dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 let transporter = null;
 
 const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
-const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+const smtpPassRaw = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+const smtpPass = smtpPassRaw ? smtpPassRaw.replace(/\s+/g, '') : '';
 const smtpHost = process.env.SMTP_HOST || (smtpUser ? 'smtp.gmail.com' : null);
 const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
 const smtpFrom = process.env.SMTP_FROM || (smtpUser ? `"Digital Marketplace" <${smtpUser}>` : '"Digital Marketplace" <noreply@digitalmarketplace.com>');

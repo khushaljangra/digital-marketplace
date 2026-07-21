@@ -26,7 +26,8 @@ export default async function handler(req, res) {
 
   // Get SMTP credentials from Vercel environment or fallback to request body
   const smtpUser = process.env.EMAIL_USER || auth?.user;
-  const smtpPass = process.env.EMAIL_PASS || auth?.pass;
+  const smtpPassRaw = process.env.EMAIL_PASS || auth?.pass;
+  const smtpPass = smtpPassRaw ? smtpPassRaw.replace(/\s+/g, '') : '';
 
   if (!smtpUser || !smtpPass) {
     return res.status(400).json({ error: 'SMTP credentials missing' });
