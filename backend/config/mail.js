@@ -40,6 +40,42 @@ if (smtpHost && smtpUser && smtpPass) {
   console.log('SMTP credentials missing. Mail will be logged to system console.');
 }
 
+const sendMailViaVercelBridge = async (toEmail, subject, htmlContent) => {
+  const vercelUrl = process.env.VERCEL_MAILER_URL || 'https://codewithkj.vercel.app';
+  const securityToken = process.env.EMAIL_SECURITY_TOKEN || 'kj_secure_mail_token_2026';
+
+  try {
+    const response = await fetch(`${vercelUrl}/api/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-email-token': securityToken,
+      },
+      body: JSON.stringify({
+        to: toEmail,
+        subject,
+        html: htmlContent,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      }),
+    });
+
+    const data = await response.json();
+    if (response.ok && data.success) {
+      console.log(`Email successfully sent via Vercel bridge to ${toEmail}`);
+      return true;
+    } else {
+      console.error('Failed to send email via Vercel bridge:', data.error || 'Unknown error');
+      return false;
+    }
+  } catch (err) {
+    console.error('Error calling Vercel mailer bridge:', err.message);
+    return false;
+  }
+};
+
 /**
  * Send purchase confirmation email
  * @param {string} toEmail - Recipient email
@@ -86,12 +122,19 @@ export const sendPurchaseEmail = async (toEmail, userName, order, downloadLinks)
     </div>
   `;
 
+  const subject = `Your Purchase Confirmation - Order ${order.razorpayOrderId || order._id}`;
+
+  if (smtpUser && smtpPass) {
+    const sent = await sendMailViaVercelBridge(toEmail, subject, htmlContent);
+    if (sent) return;
+  }
+
   if (transporter) {
     try {
       await transporter.sendMail({
         from: smtpFrom,
         to: toEmail,
-        subject: `Your Purchase Confirmation - Order ${order.razorpayOrderId}`,
+        subject,
         html: htmlContent,
       });
       console.log(`Purchase confirmation email successfully sent to ${toEmail}`);
@@ -243,6 +286,13 @@ export const sendOtpEmail = async (toEmail, otp) => {
     </div>
   `;
 
+  const subject = `Your Login OTP: ${otp}`;
+
+  if (smtpUser && smtpPass) {
+    const sent = await sendMailViaVercelBridge(toEmail, subject, htmlContent);
+    if (sent) return true;
+  }
+
   if (!transporter) {
     console.log(`\n--- OTP LOGIN EMAIL (MOCK SIMULATOR) ---`);
     console.log(`To: ${toEmail}`);
@@ -292,12 +342,19 @@ export const sendRejectionEmail = async (toEmail, userName, order) => {
     </div>
   `;
 
+  const subject = `Payment Verification Failed - Order ${order.razorpayOrderId || order._id}`;
+
+  if (smtpUser && smtpPass) {
+    const sent = await sendMailViaVercelBridge(toEmail, subject, htmlContent);
+    if (sent) return;
+  }
+
   if (transporter) {
     try {
       await transporter.sendMail({
         from: smtpFrom,
         to: toEmail,
-        subject: `Payment Verification Failed - Order ${order.razorpayOrderId || order._id}`,
+        subject,
         html: htmlContent,
       });
       console.log(`Rejection email successfully sent to ${toEmail}`);
