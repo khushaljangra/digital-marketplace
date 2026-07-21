@@ -11,7 +11,7 @@ let transporter = null;
 const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
 const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
 const smtpHost = process.env.SMTP_HOST || (smtpUser ? 'smtp.gmail.com' : null);
-const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
+const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
 const smtpFrom = process.env.SMTP_FROM || (smtpUser ? `"Digital Marketplace" <${smtpUser}>` : '"Digital Marketplace" <noreply@digitalmarketplace.com>');
 
 if (smtpHost && smtpUser && smtpPass) {

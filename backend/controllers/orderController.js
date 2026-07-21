@@ -674,7 +674,7 @@ export const verifyUtrOrder = async (req, res) => {
     const recipientName = order.user && order.user.name ? order.user.name : 'Customer';
 
     if (recipientEmail) {
-      await sendPurchaseEmail(recipientEmail, recipientName, order, downloadLinks);
+      sendPurchaseEmail(recipientEmail, recipientName, order, downloadLinks);
     } else {
       console.warn(`No email found to send purchase confirmation for order ${order._id}`);
     }
@@ -718,7 +718,7 @@ export const rejectUtrOrder = async (req, res) => {
     const recipientName = order.user && order.user.name ? order.user.name : 'Customer';
 
     if (recipientEmail) {
-      await sendRejectionEmail(recipientEmail, recipientName, order);
+      sendRejectionEmail(recipientEmail, recipientName, order);
     } else {
       console.warn(`No email found to send rejection for order ${order._id}`);
     }
