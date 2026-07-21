@@ -5,6 +5,21 @@ import { useCart } from '../context/CartContext';
 import { request } from '../utils/api';
 import { ShoppingCart, Trash2, Tag, Percent, ArrowRight, ShieldCheck, QrCode } from 'lucide-react';
 
+// Helper function to dynamically load script
+const loadScript = (src) => {
+  return new Promise((resolve) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 // Configure your personal UPI ID here
 const MERCHANT_UPI_ID = '7303354598@axl';
 
@@ -102,9 +117,12 @@ const Cart = () => {
         }
       } else {
         if (!window.Razorpay) {
-          alert('Razorpay Checkout SDK failed to load. Check internet connection.');
-          setCheckoutLoading(false);
-          return;
+          const loaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+          if (!loaded || !window.Razorpay) {
+            alert('Razorpay Checkout SDK failed to load. Check internet connection.');
+            setCheckoutLoading(false);
+            return;
+          }
         }
 
         const options = {
