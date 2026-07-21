@@ -6,7 +6,7 @@ import User from '../models/User.js';
 import DownloadLog from '../models/DownloadLog.js';
 import { createRazorpayOrder, verifyRazorpaySignature } from '../config/razorpay.js';
 import { generateSignedDownloadUrl } from '../config/storage.js';
-import { sendPurchaseEmail } from '../config/mail.js';
+import { sendPurchaseEmail, sendRejectionEmail } from '../config/mail.js';
 import { isDbConnected, mockDb } from '../config/mockDb.js';
 import { sendTelegramMessage, answerCallbackQuery, editTelegramMessage } from '../config/telegram.js';
 
@@ -679,14 +679,21 @@ export const rejectUtrOrder = async (req, res) => {
       if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
       order.paymentStatus = 'failed';
+      
+      const mockUser = mockDb.users ? mockDb.users.find(u => u._id === order.user) : null;
+      await sendRejectionEmail(mockUser ? mockUser.email : 'user@marketplace.com', mockUser ? mockUser.name : 'Customer', order);
+      
       return res.json({ success: true, message: 'Order rejected successfully.', order });
     }
 
-    const order = await Order.findById(orderId);
+    const order = await Order.findById(orderId).populate('user');
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
     order.paymentStatus = 'failed';
     await order.save();
+
+    // Send rejection email to user
+    await sendRejectionEmail(order.user.email, order.user.name, order);
 
     res.json({ success: true, message: 'Order rejected successfully.', order });
   } catch (error) {

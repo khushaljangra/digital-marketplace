@@ -2,11 +2,11 @@ import nodemailer from 'nodemailer';
 
 let transporter = null;
 
-const smtpHost = process.env.SMTP_HOST;
-const smtpPort = process.env.SMTP_PORT || 587;
-const smtpUser = process.env.SMTP_USER;
-const smtpPass = process.env.SMTP_PASS;
-const smtpFrom = process.env.SMTP_FROM || '"Digital Marketplace" <noreply@digitalmarketplace.com>';
+const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
+const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+const smtpHost = process.env.SMTP_HOST || (smtpUser ? 'smtp.gmail.com' : null);
+const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
+const smtpFrom = process.env.SMTP_FROM || (smtpUser ? `"Digital Marketplace" <${smtpUser}>` : '"Digital Marketplace" <noreply@digitalmarketplace.com>');
 
 if (smtpHost && smtpUser && smtpPass) {
   transporter = nodemailer.createTransport({
@@ -18,9 +18,9 @@ if (smtpHost && smtpUser && smtpPass) {
       pass: smtpPass,
     },
   });
-  console.log('SMTP Mail Server Configured');
+  console.log(`SMTP Mail Server Configured (${smtpHost}:${smtpPort})`);
 } else {
-  console.log('SMTP credentials missing in .env. Mail will be logged to system console.');
+  console.log('SMTP credentials missing. Mail will be logged to system console.');
 }
 
 /**
@@ -246,5 +246,51 @@ export const sendOtpEmail = async (toEmail, otp) => {
   } catch (error) {
     console.error('Error sending OTP email:', error.message);
     return false;
+  }
+};
+
+/**
+ * Send purchase rejection email
+ * @param {string} toEmail - Recipient email
+ * @param {string} userName - Name of user
+ * @param {Object} order - Order details
+ */
+export const sendRejectionEmail = async (toEmail, userName, order) => {
+  const htmlContent = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #334155; line-height: 1.6;">
+      <h2 style="color: #dc2626; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Payment Verification Failed</h2>
+      <p>Hello ${userName},</p>
+      <p>We were unable to verify the transaction details (UTR/Reference Number) submitted for your order.</p>
+      
+      <div style="margin: 20px 0; padding: 15px; background: #fef2f2; border: 1px solid #fee2e2; border-radius: 8px;">
+        <p style="margin: 0;"><strong>Order ID:</strong> ${order.razorpayOrderId || order._id}</p>
+        <p style="margin: 5px 0 0 0;"><strong>Status:</strong> Rejected / Unverified</p>
+      </div>
+
+      <p>Please double-check the UTR number and verify that the payment went through. If you believe this is a mistake, please reach out to our support chat or reply directly to this email with a screenshot of your payment receipt.</p>
+      
+      <p style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 13px; color: #94a3b8;">
+        Need help? Reply to this email or visit our Support Chat.
+      </p>
+    </div>
+  `;
+
+  if (transporter) {
+    try {
+      await transporter.sendMail({
+        from: smtpFrom,
+        to: toEmail,
+        subject: `Payment Verification Failed - Order ${order.razorpayOrderId || order._id}`,
+        html: htmlContent,
+      });
+      console.log(`Rejection email successfully sent to ${toEmail}`);
+    } catch (error) {
+      console.error('Error sending rejection email:', error.message);
+    }
+  } else {
+    console.log('\n--- EMAIL SENT (REJECTION MOCK) ---');
+    console.log(`To: ${toEmail}`);
+    console.log(`Subject: Payment Verification Failed - Order ${order.razorpayOrderId || order._id}`);
+    console.log('-----------------------------------\n');
   }
 };
