@@ -225,7 +225,12 @@ const AdminDashboard = () => {
       const data = await request(`/orders/verify-utr/${orderId}`, 'POST');
       if (data.success) {
         alert('Order approved successfully! Download access has been unlocked.');
-        fetchOrders();
+        
+        // Optimistically update local state to reflect 'paid' status immediately
+        setOrders(prevOrders => prevOrders.map(o => 
+          o._id === orderId ? { ...o, paymentStatus: 'paid' } : o
+        ));
+        
         fetchDashboardStats();
       }
     } catch (error) {
@@ -239,7 +244,11 @@ const AdminDashboard = () => {
       const data = await request(`/orders/reject-utr/${orderId}`, 'POST');
       if (data.success) {
         alert('Order rejected successfully.');
-        fetchOrders();
+        
+        // Optimistically update local state to reflect 'failed' status immediately
+        setOrders(prevOrders => prevOrders.map(o => 
+          o._id === orderId ? { ...o, paymentStatus: 'failed' } : o
+        ));
       }
     } catch (error) {
       alert(error.message || 'Rejection failed');
