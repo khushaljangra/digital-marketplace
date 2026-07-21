@@ -14,12 +14,12 @@ import {
 } from 'lucide-react';
 
 const AVATAR_OPTIONS = [
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80', // Female dev
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80', // Male dev 1
-  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=120&h=120&q=80', // Male dev 2
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&h=120&q=80', // Female dev 2
-  'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=120&h=120&q=80', // Young dev
-  'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=120&h=120&q=80', // Tech pro
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Jack',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=James',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Sophia',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Lilith',
 ];
 
 const UserDashboard = () => {
@@ -33,6 +33,75 @@ const UserDashboard = () => {
   const [profileMsg, setProfileMsg] = useState('');
   const [profileError, setProfileError] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
+
+  // Camera and Upload states
+  const [cameraActive, setCameraActive] = useState(false);
+  const [stream, setStream] = useState(null);
+
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
+  const compressAndSetAvatar = (imageOrVideo, isVideo = false) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageOrVideo, 0, 0, 128, 128);
+    const base64Url = canvas.toDataURL('image/jpeg', 0.8);
+    setSelectedAvatar(base64Url);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        compressAndSetAvatar(img, false);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width: 128, height: 128 } });
+      setStream(mediaStream);
+      setCameraActive(true);
+      setTimeout(() => {
+        const video = document.getElementById('avatar-camera-feed');
+        if (video) {
+          video.srcObject = mediaStream;
+          video.play();
+        }
+      }, 300);
+    } catch (err) {
+      alert('Camera access denied or unavailable: ' + err.message);
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    setStream(null);
+    setCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    const video = document.getElementById('avatar-camera-feed');
+    if (video) {
+      compressAndSetAvatar(video, true);
+      stopCamera();
+    }
+  };
 
   // Purchased items & Download history
   const [purchases, setPurchases] = useState([]);
@@ -421,9 +490,9 @@ const UserDashboard = () => {
                   {profileError && <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#f87171', padding: '12px', borderRadius: '8px', fontSize: '13px', marginBottom: '20px' }}>{profileError}</div>}
 
                   <form onSubmit={handleProfileSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '400px' }}>
-                    <div style={{ marginBottom: '10px' }}>
-                      <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: 600 }}>Choose Profile Avatar</label>
-                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: 600 }}>Choose Cartoon Avatar</label>
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
                         {AVATAR_OPTIONS.map((avatarUrl, idx) => (
                           <div 
                             key={idx} 
@@ -437,13 +506,42 @@ const UserDashboard = () => {
                               border: selectedAvatar === avatarUrl ? '3px solid var(--primary)' : '2px solid transparent',
                               boxShadow: selectedAvatar === avatarUrl ? '0 0 10px rgba(99, 102, 241, 0.4)' : 'none',
                               transition: 'all 0.2s ease',
-                              transform: selectedAvatar === avatarUrl ? 'scale(1.08)' : 'scale(1)'
+                              transform: selectedAvatar === avatarUrl ? 'scale(1.08)' : 'scale(1)',
+                              background: 'var(--bg-tertiary)'
                             }}
                           >
                             <img src={avatarUrl} alt={`avatar-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
                         ))}
                       </div>
+
+                      <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '16px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                        <label className="btn btn-secondary" style={{ padding: '8px 14px', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                          📁 Upload Custom Image
+                          <input type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
+                        </label>
+                        
+                        {!cameraActive ? (
+                          <button type="button" onClick={startCamera} className="btn btn-secondary" style={{ padding: '8px 14px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            📷 Take Live Photo
+                          </button>
+                        ) : (
+                          <div style={{ width: '100%', marginTop: '12px', background: 'var(--bg-tertiary)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                            <video id="avatar-camera-feed" style={{ width: '128px', height: '128px', borderRadius: '50%', objectFit: 'cover', transform: 'scaleX(-1)', border: '2px solid var(--primary)', marginBottom: '12px' }}></video>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                              <button type="button" onClick={capturePhoto} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }}>Snap Photo</button>
+                              <button type="button" onClick={stopCamera} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>Cancel</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedAvatar && selectedAvatar.startsWith('data:image/') && (
+                        <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 'bold' }}>✓ Custom Photo Loaded</span>
+                          <button type="button" onClick={() => setSelectedAvatar('')} style={{ background: 'none', border: 'none', color: 'var(--error)', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}>Clear custom photo</button>
+                        </div>
+                      )}
                     </div>
 
                     <div>
