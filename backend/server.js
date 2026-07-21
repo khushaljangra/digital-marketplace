@@ -15,11 +15,9 @@ import supportRoutes from './routes/supportRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import featureRequestRoutes from './routes/featureRequestRoutes.js';
 
-// Load env vars (check local folder first, then parent folder as fallback for Render secret file mounts)
+// Load env vars (load local .env first, and merge parent .env as fallback for Render secret file mounts)
 dotenv.config();
-if (!process.env.MONGO_URI && !process.env.JWT_SECRET) {
-  dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
-}
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
 // Connect to Database
 connectDB();
