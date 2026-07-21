@@ -5,21 +5,6 @@ import { useCart } from '../context/CartContext';
 import { request } from '../utils/api';
 import { ShoppingCart, Trash2, Tag, Percent, ArrowRight, ShieldCheck, QrCode } from 'lucide-react';
 
-// Helper function to dynamically load script
-const loadScript = (src) => {
-  return new Promise((resolve) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve(true);
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = src;
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
-
 // Configure your personal UPI ID here
 const MERCHANT_UPI_ID = '7303354598@axl';
 
@@ -44,10 +29,8 @@ const Cart = () => {
   const [couponCode, setCouponCode] = useState('');
   const [couponMsg, setCouponMsg] = useState('');
   const [couponError, setCouponError] = useState('');
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   // QR Code direct payment states
-  const [paymentMethod] = useState('qr_code'); // Always qr_code
   const [showQrModal, setShowQrModal] = useState(false);
   const [utrNumber, setUtrNumber] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -81,95 +64,8 @@ const Cart = () => {
     }
   };
 
-  const handleCheckout = async () => {
-    if (paymentMethod === 'qr_code') {
-      setShowQrModal(true);
-      return;
-    }
-
-    setCheckoutLoading(true);
-    try {
-      const projectIds = cartItems.map((item) => item._id);
-      
-      const orderData = await request('/orders/checkout', 'POST', {
-        projectIds,
-        couponCode: coupon?.code,
-      });
-
-      if (!orderData.success) {
-        throw new Error('Failed to initiate checkout');
-      }
-
-      if (orderData.isMock) {
-        alert('Sandbox Mode: Processing mock payment checkout instantly.');
-        
-        const verification = await request('/orders/verify', 'POST', {
-          razorpayOrderId: orderData.razorpayOrderId,
-          razorpayPaymentId: `pay_mock_${Math.random().toString(36).substring(2, 10)}`,
-          razorpaySignature: 'mock_payment_signature_passed_successfully_2026',
-        });
-
-        if (verification.success) {
-          clearCart();
-          navigate('/dashboard');
-        } else {
-          alert('Sandbox payment verification failed');
-        }
-      } else {
-        if (!window.Razorpay) {
-          const loaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
-          if (!loaded || !window.Razorpay) {
-            alert('Razorpay Checkout SDK failed to load. Check internet connection.');
-            setCheckoutLoading(false);
-            return;
-          }
-        }
-
-        const options = {
-          key: orderData.key,
-          amount: Math.round(orderData.amount * 100),
-          currency: 'INR',
-          name: 'ApexMarket',
-          description: 'Premium Source Code Purchase',
-          order_id: orderData.razorpayOrderId,
-          prefill: {
-            name: user.name,
-            email: user.email,
-          },
-          theme: {
-            color: '#6366f1',
-          },
-          handler: async (response) => {
-            try {
-              const verifyRes = await request('/orders/verify', 'POST', {
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature,
-              });
-
-              if (verifyRes.success) {
-                clearCart();
-                navigate('/dashboard');
-              }
-            } catch (err) {
-              alert(`Payment Verification Failed: ${err.message}`);
-            }
-          },
-          modal: {
-            ondismiss: function () {
-              setCheckoutLoading(false);
-            },
-          },
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-      }
-    } catch (error) {
-      alert(error.message || 'Checkout failed');
-    } finally {
-      setCheckoutLoading(false);
-    }
+  const handleCheckout = () => {
+    setShowQrModal(true);
   };
 
   const handleQrSubmit = async (e) => {
@@ -374,7 +270,6 @@ const Cart = () => {
             {/* Pay Button */}
             <button
               onClick={handleCheckout}
-              disabled={checkoutLoading}
               className="btn btn-primary"
               style={{ width: '100%', padding: '14px', fontSize: '15px' }}
             >
