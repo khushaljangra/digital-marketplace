@@ -643,24 +643,45 @@ export const verifyUtrOrder = async (req, res) => {
 
     // Send confirmation email with download links
     const downloadLinks = [];
+    const userIdStr = order.user && order.user._id ? order.user._id.toString() : 'guest_user';
+
     for (const item of order.items) {
+      if (!item.project) {
+        console.warn(`Project missing for order item in order ${order._id}`);
+        continue;
+      }
+      
+      const fileKey = item.project.fileKey || '';
+      const fileName = item.project.fileName || 'download.zip';
+      const projectIdStr = item.project._id ? item.project._id.toString() : '';
+
       const downloadUrl = generateSignedDownloadUrl(
-        item.project.fileKey,
-        item.project.fileName,
-        order.user._id.toString(),
-        item.project._id.toString(),
+        fileKey,
+        fileName,
+        userIdStr,
+        projectIdStr,
         order._id.toString(),
         hostUrl
       );
+      
       downloadLinks.push({
-        title: item.project.title,
+        title: item.project.title || item.titleAtPurchase || 'Download Link',
         downloadUrl,
       });
     }
-    await sendPurchaseEmail(order.user.email, order.user.name, order, downloadLinks);
+
+    const recipientEmail = order.user && order.user.email ? order.user.email : order.contactEmail;
+    const recipientName = order.user && order.user.name ? order.user.name : 'Customer';
+
+    if (recipientEmail) {
+      await sendPurchaseEmail(recipientEmail, recipientName, order, downloadLinks);
+    } else {
+      console.warn(`No email found to send purchase confirmation for order ${order._id}`);
+    }
 
     res.json({ success: true, message: 'Order approved successfully.', order });
   } catch (error) {
+    console.error("Error in verifyUtrOrder:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -692,11 +713,19 @@ export const rejectUtrOrder = async (req, res) => {
     order.paymentStatus = 'failed';
     await order.save();
 
-    // Send rejection email to user
-    await sendRejectionEmail(order.user.email, order.user.name, order);
+    // Send rejection email to user (fallback to contactEmail for guests)
+    const recipientEmail = order.user && order.user.email ? order.user.email : order.contactEmail;
+    const recipientName = order.user && order.user.name ? order.user.name : 'Customer';
+
+    if (recipientEmail) {
+      await sendRejectionEmail(recipientEmail, recipientName, order);
+    } else {
+      console.warn(`No email found to send rejection for order ${order._id}`);
+    }
 
     res.json({ success: true, message: 'Order rejected successfully.', order });
   } catch (error) {
+    console.error("Error in rejectUtrOrder:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
